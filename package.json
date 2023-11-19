@@ -1,0 +1,24 @@
+{
+  "name": "lxc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "npm install -g node-gyp",
+    "dev": "ts-node tests/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node-gyp configure && node-gyp build && tsc --build && mkdir -p dist/build &&  mv build/Release/node-unix.node dist/build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.9.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "node-addon-api": "^7.0.0",
+    "bindings": "^1.5.0"
+  }
+}
