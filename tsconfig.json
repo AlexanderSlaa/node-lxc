@@ -5,6 +5,9 @@
     "sourceMap": true
   },
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "src",
+    "cmake-build-debug",
+    "build"
   ]
 }
