@@ -1,4 +1,4 @@
-const LXC = require("../lib");
+const LXC = require("../lib/binding");
 
 const assert = require("assert");
 

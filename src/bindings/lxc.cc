@@ -13,7 +13,7 @@
 #include <lxc/attach_options.h>
 #include <lxc/version.h>
 
-#include "lxc-bindings.h"
+#include "lxc.h"
 
 
 #define ret_errno(__errno__)         \
@@ -142,7 +142,7 @@ bool node_lxc_wait(struct lxc_container *c, const char *state, int timeout) {
 }
 
 char *node_lxc_get_config_item(struct lxc_container *c, const char *key) {
-    char *value = nullptr;
+    char *value;
 
     int len = c->get_config_item(c, key, nullptr, 0);
     if (len <= 0)
@@ -259,7 +259,6 @@ int node_lxc_console_getfd(struct lxc_container *c, int ttynum) {
 }
 
 bool node_lxc_console(struct lxc_container *c, int ttynum, int stdinfd, int stdoutfd, int stderrfd, int escape) {
-
     if (c->console(c, ttynum, stdinfd, stdoutfd, stderrfd, escape) == 0) {
         return true;
     }
@@ -306,7 +305,7 @@ int node_lxc_attach_no_wait(struct lxc_container *c,
     lxc_attach_options_t attach_options = LXC_ATTACH_OPTIONS_DEFAULT;
     attach_options.attach_flags = attach_flags;
 
-    lxc_attach_command_t command = (lxc_attach_command_t) {.program = NULL};
+    lxc_attach_command_t command = (lxc_attach_command_t) {.program = NULL, .argv = NULL};
 
     attach_options.env_policy = LXC_ATTACH_KEEP_ENV;
     if (clear_env) {

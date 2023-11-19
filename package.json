@@ -1,5 +1,5 @@
 {
-  "main": "lib/binding.ts",
+  "main": "lib/index.ts",
   "private": true,
   "dependencies": {
     "node-addon-api": "^1.1.0"
@@ -11,7 +11,11 @@
   },
   "scripts": {
     "install": "cmake-js compile",
-    "test": "ts-node test/test_binding.ts"
+    "test": "ts-node test/test_binding.ts",
+    "start": "node index.js",
+    "rebuild:dev": "node-gyp rebuild --debug",
+    "build:dev": "node-gyp build --debug",
+    "clean": "node-gyp clean"
   },
   "gypfile": true,
   "name": "hello-world",

@@ -6,8 +6,9 @@
 #define NODE_LXC_LXCCONTAINER_H
 
 #include <lxc/lxccontainer.h>
+#include <napi.h>
 
-class LXCContainer {
+class LXCContainer { //TODO Rewrite to Napi::ObjectWrap
 private:
     struct lxc_container *container;
 
@@ -21,7 +22,11 @@ public:
         }
     }
 
-    static LXCContainer *New(napi_env env, const char *name, const char *configpath) {
+    lxc_container *reference() {
+        return this->container;
+    }
+
+    static LXCContainer *New(Napi::Env env, const char *name, const char *configpath) {
         // Create the container
         struct lxc_container *container = lxc_container_new(name, configpath);
         if (!container) {
