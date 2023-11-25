@@ -31,7 +31,6 @@ export class Container {
 
     reboot() {
         return binding.lxc_reboot(this.$ref);
-
     }
 
 
