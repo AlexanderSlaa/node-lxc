@@ -2,7 +2,30 @@ import {Container} from "./types/container";
 
 export const binding = <LXCBinding>require('../build/Release/node-lxc');
 
-export const macros = {
+enum ByteUnit {
+    B = 1,
+    KB = 1024,
+    MB = 1024 * 1024,
+    GB = 1024 * 1024 * 1024,
+    TB = 1024 * 1024 * 1024 * 1024,
+    PB = 1024 * 1024 * 1024 * 1024 * 1024,
+    EB = 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
+}
+
+type ByteSize = number;
+
+const unitMap: Record<string, ByteUnit> = {
+    B: ByteUnit.B,
+    KB: ByteUnit.KB,
+    MB: ByteUnit.MB,
+    GB: ByteUnit.GB,
+    TB: ByteUnit.TB,
+    PB: ByteUnit.PB,
+    EB: ByteUnit.EB,
+};
+
+
+export const helpers = {
     /** VersionAtLeast returns true when the tested version >= current version.
      *
      * @param major
@@ -26,6 +49,37 @@ export const macros = {
         }
         return true
     },
+    ParseBytes(s: string) {
+        // Remove leading and trailing space
+        s = s.trim();
+
+        let split: string[] = [];
+        for (let i = 0; i < s.length; i++) {
+            const r = s[i];
+            if (!/\d/.test(r)) {
+                // Split the string by digit and size designator, remove space
+                split = [s.slice(0, i).trim(), s.slice(i).trim()];
+                break;
+            }
+        }
+
+        // Check to see if we split successfully
+        if (split.length !== 2) {
+            throw new Error("Unrecognized size suffix");
+        }
+
+        // Check for MB, MEGABYTE, and MEGABYTES
+        const unit = unitMap[split[1].toUpperCase()];
+        if (!unit) {
+            throw new Error("Unrecognized size suffix " + split[1]);
+        }
+
+        const value = parseFloat(split[0]);
+        if (isNaN(value)) {
+            return [0, new Error("Invalid number format")];
+        }
+        return value * unit;
+    }
 }
 
 export const consts = {
@@ -54,26 +108,44 @@ export enum LXC_MIGRATE {
     FEATURE_CHECK = 3,
 }
 
+//region block device specification
+
 /**
  * Specifications for how to create a new backing store
  */
-export type bdev_specs = {
-    fstype: string; /*!< Filesystem type */
-    fssize: number;  /*!< Filesystem size in bytes */
+export type bdev_spec = {
+    fstype?: string; /*!< Filesystem type */
+    fssize?: number;  /*!< Filesystem size in bytes */
+}
+
+export type bdev_spec_zfs = {
     zfs: {
         zfsroot: string
     }
+} & bdev_spec
+
+export type bdev_spec_lvm = {
     lvm: {
         vg: string,
         lv: string,
         thinpool: string,
     }
+} & Required<bdev_spec>
+
+export type bdev_spec_dir = {
     dir: string; /*!< Directory path */
+} & bdev_spec
+
+export type bdev_spec_rbd = {
     rbd: {
         rbdname: string,
         rbdpool: string,
     }
-}
+} & bdev_spec
+
+export type bdev_specs = bdev_spec_zfs | bdev_spec_lvm | bdev_spec_dir | bdev_spec_rbd
+
+//endregion
 
 export type migrate_opts = {
     /* new members should be added at the end */
@@ -119,7 +191,8 @@ export type migrate_opts = {
      * in which the desired feature checks can be encoded.
      */
     features_to_check: number; //uint64_t
-}
+} & bdev_spec
+
 
 type LXCBinding = {
     /**
@@ -245,14 +318,14 @@ type LXCBinding = {
      * @param flags LXC_CREATE_* options (currently only LXC_CREATE_QUIET is supported).
      * @param argsv
      */
-    lxc_create(container: Container, template: string | "none", bdevtype: string | null, bdevspecs?: bdev_specs, flags?: number, argsv?: string[]): Container //TODO remake function C!!!
+    lxc_create(container: Container, template: string, bdevtype: string | undefined, bdevspecs?: bdev_specs, flags?: number, argsv?: string[]): Container //TODO remake function C!!!
     /**
      * Start the container.
      * @param container
      * @param useinit Use lxcinit rather than /sbin/init.
      * @param argv Array of arguments to pass to init.
      */
-    lxc_start(container: Container, useinit: number, ...argv: string[]): boolean
+    lxc_start(container: Container, useinit: number, argv: string[]): boolean
     /**
      * Stop the container.
      * @param container

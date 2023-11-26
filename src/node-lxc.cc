@@ -1,3 +1,7 @@
+//
+// Created by alexander-slaa on 11/23/23.
+//
+
 #include <node/node_api.h>
 #include <napi.h>
 
@@ -267,19 +271,57 @@ Value lxc_create(const CallbackInfo &info) {
     std::string t = info[1].ToString().Utf8Value();
     std::string bdevtype = info[2].ToString().Utf8Value();
 
+    //region bdev_options
+    auto obj = info[3].ToObject();
+
     bdev_specs specs{};
-    specs.fstype = (char *) info[3].ToObject().Get("fstype").ToString().Utf8Value().c_str();
-    specs.fssize = static_cast<uint64_t>(info[3].ToObject().Get("fssize").ToNumber().Int64Value());
-    specs.zfs.zfsroot = (char *) info[3].ToObject().Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str();
-    specs.lvm.vg = (char *) info[3].ToObject().Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str();
-    specs.lvm.lv = (char *) info[3].ToObject().Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str();
-    specs.lvm.thinpool = (char *) info[3].ToObject().Get("lvm").ToObject().Get(
-            "thinpool").ToString().Utf8Value().c_str();
-    specs.dir = (char *) info[3].ToObject().Get("dir").ToString().Utf8Value().c_str();
-    specs.rbd.rbdname = (char *) info[3].ToObject().Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str();
-    specs.rbd.rbdpool = (char *) info[3].ToObject().Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str();
+    if (obj.Has("fstype") && obj.Get("fstype").IsString()) {
+        specs.fstype = (char *) obj.Get("fstype").ToString().Utf8Value().c_str();
+    } else {
+        specs.fstype = nullptr;
+    }
+    if (obj.Has("fssize") && obj.Get("fstype").IsNumber()) {
+        specs.fssize = static_cast<uint64_t>(obj.Get("fssize").ToNumber().Int64Value());
+    } else {
+        specs.fssize = 0;
+    }
+    if (obj.Has("zfs") && obj.Get("zfs").IsObject() && obj.Get("zfs").ToObject().Has("zfsroot")) {
+        specs.zfs.zfsroot = (char *) obj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str();
+    } else {
+        specs.zfs.zfsroot = nullptr;
+    }
+    if (obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("vg") &&
+        obj.Get("lvm").ToObject().Has("lv") && obj.Get("lvm").ToObject().Has("thinpool")) {
+        specs.lvm.vg = (char *) obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str();
+        specs.lvm.lv = (char *) obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str();
+        specs.lvm.thinpool = (char *) obj.Get("lvm").ToObject().Get(
+                "thinpool").ToString().Utf8Value().c_str();
+    } else {
+        specs.lvm.lv = nullptr;
+        specs.lvm.vg = nullptr;
+        specs.lvm.thinpool = nullptr;
+    }
+    if (obj.Has("dir") && obj.Get("dir").IsString()) {
+        specs.dir = (char *) obj.Get("dir").ToString().Utf8Value().c_str();
+    } else {
+        specs.dir = nullptr;
+    }
+
+    if (obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdname") &&
+        obj.Get("rbd").ToObject().Has("rbdpool")) {
+        specs.rbd.rbdname = (char *) obj.Get("rdb").ToObject().Get(
+                "rbdname").ToString().Utf8Value().c_str();
+        specs.rbd.rbdpool = (char *) obj.Get("rdb").ToObject().Get(
+                "rbdpool").ToString().Utf8Value().c_str();
+    } else {
+        specs.rbd.rbdname = nullptr;
+        specs.rbd.rbdpool = nullptr;
+    }
+
+    //endregion
 
     int flags = info[4].ToNumber().Int32Value();
+
 
     // Convert JavaScript array to char* const argv[]
     Array argvArray = info[5].As<Array>();
@@ -311,24 +353,27 @@ Value lxc_start(const CallbackInfo &info) {
     // Get the container handle from JavaScript
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
 
-    // Convert JavaScript array to char* const argv[]
-    Array argvArray = info[5].As<Array>();
-    size_t argc = argvArray.Length();
-    char **argv = new char *[argc + 1];
-    for (size_t i = 0; i < argc; ++i) {
-        argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
+    char **argv = nullptr;
+    size_t argc;
+    if (info[2].IsArray()) {     // Convert JavaScript array to char* const argv[]
+        Array argvArray = info[2].As<Array>();
+        argc = argvArray.Length();
+        argv = new char *[argc + 1];
+        for (size_t i = 0; i < argc; ++i) {
+            argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
+        }
+        argv[argc] = nullptr;
     }
-    argv[argc] = nullptr;
-
     // Call the C++ implementation
     bool result = ref.Data()->start(info[1].ToNumber().Int32Value(), argv);
 
-    // Free allocated memory
-    for (size_t i = 0; i < argc; ++i) {
-        free(const_cast<char *>(argv[i]));
+    if (argv != nullptr) {
+        // Free allocated memory
+        for (size_t i = 0; i < argc; ++i) {
+            free(const_cast<char *>(argv[i]));
+        }
+        delete[] argv;
     }
-    delete[] argv;
-
     return Boolean::New(info.Env(), result);
 }
 
@@ -728,7 +773,8 @@ Value lxc_migrate(const CallbackInfo &info) {
             .pageserver_port = optsObj.Has("pageserver_port") ? (char *) optsObj.Get(
                     "pageserver_port").ToString().Utf8Value().c_str() : nullptr,
 #if VERSION_AT_LEAST(2, 0, 1)
-            .preserves_inodes = optsObj.Has("preserves_inodes") ? optsObj.Get("preserves_inodes").ToBoolean() : false,
+            .preserves_inodes = optsObj.Has("preserves_inodes") ? optsObj.Get("preserves_inodes").ToBoolean()
+                                                                : false,
 #endif
 #if VERSION_AT_LEAST(2, 0, 4)
             .action_script = optsObj.Has("action_script") ? (char *) optsObj.Get(
