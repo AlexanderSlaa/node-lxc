@@ -1,4 +1,4 @@
-import {Container} from "./types/container";
+import { Container } from "./types/container";
 
 export const binding = <LXCBinding>require('../build/Release/node-lxc');
 
@@ -143,7 +143,7 @@ export type bdev_spec_rbd = {
     }
 } & bdev_spec
 
-export type bdev_specs = bdev_spec_zfs | bdev_spec_lvm | bdev_spec_dir | bdev_spec_rbd
+export type bdev_specs = bdev_spec_zfs | bdev_spec_lvm | bdev_spec_dir | bdev_spec_rbd | {}
 
 //endregion
 
@@ -204,7 +204,7 @@ type LXCBinding = {
      * @param key
      * @constructor
      */
-    lxc_get_global_config_item(key: string): string | null;
+    get_global_config_item(key: string): string | null;
     /**
      * ContainerNames returns the names of defined and active containers on the system.
      * @param lxc_path
@@ -570,4 +570,9 @@ type LXCBinding = {
      * @param container
      */
     lxc_error_num(container: Container): number
+    /**
+     * Human-readable string representing last error
+     * @param container
+     */
+    lxc_error_str(container: Container): string | null
 }

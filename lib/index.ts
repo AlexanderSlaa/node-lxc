@@ -4,25 +4,25 @@ import {binding} from "./bindings";
 export const LXC = {
     //region direct from C bindings
     version: binding.version,
-    get_global_config_item: binding.lxc_get_global_config_item,
+    get_global_config_item: binding.get_global_config_item,
     //endregion
     /**
      * default_config_path returns default config path.
      */
     default_config_path() {
-        return binding.lxc_get_global_config_item("lxc.lxcpath");
+        return binding.get_global_config_item("lxc.lxcpath");
     },
     /**
      * default_lvm_vg returns the name of the default LVM volume group.
      */
     default_lvm_vg() {
-        return binding.lxc_get_global_config_item("lxc.bdev.lvm.vg");
+        return binding.get_global_config_item("lxc.bdev.lvm.vg");
     },
     /**
      * default_zfs_vg returns the name of the default ZFS root.
      */
     default_zfs_vg() {
-        return binding.lxc_get_global_config_item("lxc.bdev.zfs.root");
+        return binding.get_global_config_item("lxc.bdev.zfs.root");
     },
     /**
      * Containers returns the defined and active containers on the system. Only

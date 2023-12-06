@@ -1,7 +1,7 @@
-import {readFileSync, readdirSync} from "fs";
-import {bdev_spec, bdev_specs, binding, helpers} from "../bindings";
-import {join} from "path";
-import {BackendStore, BackendStoreSpecs, bdev_type, LogLevel} from "./type";
+import { readFileSync, readdirSync } from "fs";
+import { bdev_spec, bdev_specs, binding, helpers } from "../bindings";
+import { join } from "path";
+import { bdev_type, LogLevel } from "./type";
 
 export class Container {
 
@@ -101,7 +101,7 @@ export class Container {
     }
 
     get error() {
-        return binding.lxc_error_num(this._$ref);
+        return binding.lxc_error_str(this._$ref);
     }
 
     reboot() {
@@ -110,7 +110,9 @@ export class Container {
 
     create(template: string, bdevtype: bdev_type, bdev_spec: bdev_specs, verbosity: number = 0, args?: string[]) {
         if (!this.isDefined) {
-            binding.lxc_create(this._$ref, template, bdevtype, bdev_spec, verbosity, args)
+            return binding.lxc_create(this._$ref, template, bdevtype, bdev_spec, verbosity, args);
+        } else {
+            throw new Error("Container already defined");
         }
     }
 

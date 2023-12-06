@@ -139,10 +139,6 @@ namespace LXC {
             }
         }
 
-        lxc_container *reference() {
-            return this->container;
-        }
-
         const char *state() {
             return this->container->state(this->container);
         }
@@ -220,12 +216,24 @@ namespace LXC {
         }
 
         bool create(const char *t, const char *bdevtype, struct bdev_specs *specs, int flags,
-                    char *const argv[]) {
-            if (strncmp(t, "none", strlen(t)) == 0) {
-                return this->container->create(this->container, NULL, bdevtype, specs, !!(flags & LXC_CREATE_QUIET),
-                                               argv);
+                    char **const argv, size_t argc) {
+            printf("template:\t %s\n", t);
+            printf("bdevtype:\t %s\n", bdevtype == nullptr ? "none" : bdevtype);
+            printf("flags:\t %d\n", flags);
+            for (int i = 0; i < argc; ++i) {
+                printf("[%d]:\t %s\n", i, argv[i]);
             }
-            return this->container->create(this->container, t, bdevtype, specs, !!(flags & LXC_CREATE_QUIET), argv);
+            auto flag = !!(flags & LXC_CREATE_QUIET);
+            if (strncmp(t, "none", strlen(t)) == 0) {
+                printf("using none %d\n", flag);
+                return this->container->create(this->container, nullptr, bdevtype, specs, flag,
+                                               argv);
+//                return this->container->create(this->container, nullptr, bdevtype, specs, flags,
+//                                               argv);
+            }
+            printf("using defined %d\n", flag);
+            return this->container->create(this->container, t, bdevtype, specs, flag, argv);
+//            return this->container->create(this->container, t, bdevtype, specs, flags, argv);
         }
 
         bool start(int useinit, char *const argv[]) {
@@ -650,6 +658,10 @@ namespace LXC {
 
         int error_num() {
             return this->container->error_num;
+        }
+
+        char * error_str() {
+            return this->container->error_string;
         }
 
         int console_log(struct lxc_console_log *log) {

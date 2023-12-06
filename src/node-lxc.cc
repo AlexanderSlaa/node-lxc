@@ -258,11 +258,11 @@ Value lxc_want_close_all_fds(const CallbackInfo &info) {
 Value lxc_create(const CallbackInfo &info) {
     Env env = info.Env();
 
-    if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString() || !info[3].IsObject() ||
-        !info[4].IsNumber() || !info[5].IsArray()) {
-        TypeError::New(env, "Invalid parameter").ThrowAsJavaScriptException();
-        return env.Null();
-    }
+//    if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString() || !info[3].IsObject() ||
+//        !info[4].IsNumber() || !info[5].IsArray()) {
+//        TypeError::New(env, "Invalid parameter").ThrowAsJavaScriptException();
+//        return env.Null();
+//    }
 
     // Get the container handle from JavaScript
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
@@ -274,50 +274,36 @@ Value lxc_create(const CallbackInfo &info) {
     //region bdev_options
     auto obj = info[3].ToObject();
 
-    bdev_specs specs{};
-    if (obj.Has("fstype") && obj.Get("fstype").IsString()) {
-        specs.fstype = (char *) obj.Get("fstype").ToString().Utf8Value().c_str();
-    } else {
-        specs.fstype = nullptr;
-    }
-    if (obj.Has("fssize") && obj.Get("fstype").IsNumber()) {
-        specs.fssize = static_cast<uint64_t>(obj.Get("fssize").ToNumber().Int64Value());
-    } else {
-        specs.fssize = 0;
-    }
-    if (obj.Has("zfs") && obj.Get("zfs").IsObject() && obj.Get("zfs").ToObject().Has("zfsroot")) {
-        specs.zfs.zfsroot = (char *) obj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str();
-    } else {
-        specs.zfs.zfsroot = nullptr;
-    }
-    if (obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("vg") &&
-        obj.Get("lvm").ToObject().Has("lv") && obj.Get("lvm").ToObject().Has("thinpool")) {
-        specs.lvm.vg = (char *) obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str();
-        specs.lvm.lv = (char *) obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str();
-        specs.lvm.thinpool = (char *) obj.Get("lvm").ToObject().Get(
-                "thinpool").ToString().Utf8Value().c_str();
-    } else {
-        specs.lvm.lv = nullptr;
-        specs.lvm.vg = nullptr;
-        specs.lvm.thinpool = nullptr;
-    }
-    if (obj.Has("dir") && obj.Get("dir").IsString()) {
-        specs.dir = (char *) obj.Get("dir").ToString().Utf8Value().c_str();
-    } else {
-        specs.dir = nullptr;
-    }
-
-    if (obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdname") &&
-        obj.Get("rbd").ToObject().Has("rbdpool")) {
-        specs.rbd.rbdname = (char *) obj.Get("rdb").ToObject().Get(
-                "rbdname").ToString().Utf8Value().c_str();
-        specs.rbd.rbdpool = (char *) obj.Get("rdb").ToObject().Get(
-                "rbdpool").ToString().Utf8Value().c_str();
-    } else {
-        specs.rbd.rbdname = nullptr;
-        specs.rbd.rbdpool = nullptr;
-    }
-
+    bdev_specs specs{
+            .fstype = obj.Has("fstype") && obj.Get("fstype").IsString() ? (char *) obj.Get(
+                    "fstype").ToString().Utf8Value().c_str() : nullptr,
+            .fssize = obj.Has("fssize") && obj.Get("fstype").IsNumber() ? static_cast<uint64_t>(obj.Get(
+                    "fssize").ToNumber().Int64Value()) : 0,
+            .zfs{
+                    .zfsroot = obj.Has("zfs") && obj.Get("zfs").IsObject() && obj.Get("zfs").ToObject().Has("zfsroot")
+                               ? (char *) obj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str()
+                               : nullptr,
+            },
+            .lvm{
+                    .vg = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("vg")
+                          ? (char *) obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str() : nullptr,
+                    .lv =obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("lv")
+                         ? (char *) obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str() : nullptr,
+                    .thinpool = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("thinpool")
+                                ? (char *) obj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str()
+                                : nullptr
+            },
+            .dir = obj.Has("dir") && obj.Get("dir").IsString() ? (char *) obj.Get("dir").ToString().Utf8Value().c_str()
+                                                               : nullptr,
+            .rbd{
+                    .rbdname= obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdname")
+                              ? (char *) obj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str()
+                              : nullptr,
+                    .rbdpool=obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdpool")
+                             ? (char *) obj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str()
+                             : nullptr,
+            },
+    };
     //endregion
 
     int flags = info[4].ToNumber().Int32Value();
@@ -326,14 +312,16 @@ Value lxc_create(const CallbackInfo &info) {
     // Convert JavaScript array to char* const argv[]
     Array argvArray = info[5].As<Array>();
     size_t argc = argvArray.Length();
+    printf("arrayLen: %zu\n", argc);
     char **argv = new char *[argc + 1];
     for (size_t i = 0; i < argc; ++i) {
         argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
     }
     argv[argc] = nullptr;
+    argc++;
 
     // Call the C++ implementation
-    bool result = ref.Data()->create(t.c_str(), bdevtype.c_str(), &specs, flags, argv);
+    bool result = ref.Data()->create(t.c_str(), bdevtype.c_str(), &specs, flags, argv, argc);
 
     // Free allocated memory
     for (size_t i = 0; i < argc; ++i) {
@@ -764,8 +752,8 @@ Value lxc_migrate(const CallbackInfo &info) {
     auto optsObj = info[2].ToObject();
     struct migrate_opts opts = {
             .directory = (char *) optsObj.Get("directory").ToString().Utf8Value().c_str(),
-            .verbose = optsObj.Has("verbose") ? optsObj.Get("verbose").ToBoolean() : false,
-            .stop = optsObj.Has("stop") ? optsObj.Get("stop").ToBoolean() : false,
+            .verbose = optsObj.Has("verbose") && optsObj.Get("verbose").ToBoolean(),
+            .stop = optsObj.Has("stop") && optsObj.Get("stop").ToBoolean(),
             .predump_dir = optsObj.Has("predump_dir") ? (char *) optsObj.Get(
                     "predump_dir").ToString().Utf8Value().c_str() : nullptr,
             .pageserver_address = optsObj.Has("pageserver_address") ? (char *) optsObj.Get(
@@ -773,14 +761,13 @@ Value lxc_migrate(const CallbackInfo &info) {
             .pageserver_port = optsObj.Has("pageserver_port") ? (char *) optsObj.Get(
                     "pageserver_port").ToString().Utf8Value().c_str() : nullptr,
 #if VERSION_AT_LEAST(2, 0, 1)
-            .preserves_inodes = optsObj.Has("preserves_inodes") ? optsObj.Get("preserves_inodes").ToBoolean()
-                                                                : false,
+            .preserves_inodes = optsObj.Has("preserves_inodes") && optsObj.Get("preserves_inodes").ToBoolean(),
 #endif
 #if VERSION_AT_LEAST(2, 0, 4)
             .action_script = optsObj.Has("action_script") ? (char *) optsObj.Get(
                     "action_script").ToString().Utf8Value().c_str() : nullptr,
-            .disable_skip_in_flight = optsObj.Has("disable_skip_in_flight") ? optsObj.Get(
-                    "disable_skip_in_flight").ToBoolean() : false,
+            .disable_skip_in_flight = optsObj.Has("disable_skip_in_flight") && optsObj.Get(
+                    "disable_skip_in_flight").ToBoolean(),
 #endif
             .ghost_limit = optsObj.Has("ghost_limit") ? optsObj.Get("ghost_limit").ToNumber().Uint32Value() : 0,
 #if VERSION_AT_LEAST(3, 0, 0)
@@ -830,6 +817,21 @@ Value lxc_error_num(const CallbackInfo &info) {
     // Get the container handle from JavaScript
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Number::New(info.Env(), ref.Data()->error_num());
+}
+
+
+Value lxc_error_str(const CallbackInfo &info) {
+    if (!info[0].IsExternal()) {
+        TypeError::New(info.Env(), "Invalid parameters").ThrowAsJavaScriptException();
+        return info.Env().Null();
+    }
+    // Get the container handle from JavaScript
+    External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
+    auto err_str = ref.Data()->error_str();
+    if (err_str == nullptr) {
+        return info.Env().Null();
+    }
+    return String::New(info.Env(), err_str);
 }
 
 //Value lxc_console_log(const CallbackInfo &info) {
@@ -907,6 +909,7 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "lxc_detach_interface"), Function::New(env, lxc_detach_interface));
     exports.Set(String::New(env, "lxc_detach_interface"), Function::New(env, lxc_detach_interface));
     exports.Set(String::New(env, "lxc_error_num"), Function::New(env, lxc_error_num));
+    exports.Set(String::New(env, "lxc_error_str"), Function::New(env, lxc_error_str));
 
     //endregion
     return exports;
