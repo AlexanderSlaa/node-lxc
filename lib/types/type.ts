@@ -10,7 +10,7 @@ export enum LogLevel {
     FATAL = "FATAL",
 }
 
-export enum bdev_type {
+export enum BDevType {
     btrfs = "btrfs",
     dir = "dir",
     lvm = "lvm",
@@ -27,7 +27,7 @@ export type TemplateOptions = {
     Template: string
 
     // Backend specifies the type of the backend.
-    Backend: bdev_type
+    Backend: BDevType
 
     BackendSpecs: BackendStoreSpecs
 
