@@ -262,18 +262,18 @@ Value lxc_create(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
 
     // Parse container creation parameters
-    const char *t = info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr;
-    const char *bdevtype = info[2].IsString() ? info[2].ToString().Utf8Value().c_str() : nullptr;
+    const char *t = info[1].IsString() ? strdup(info[1].ToString().Utf8Value().c_str()) : nullptr;
+    const char *bdevtype = info[2].IsString() ? strdup(info[2].ToString().Utf8Value().c_str()) : nullptr;
     int flags = info[4].IsNumber() ? info[4].ToNumber().Int32Value() : 0;
 
     // region bdev_options
     auto obj = info[3].ToObject();
     bdev_specs specs{
-            .fstype = obj.Has("fstype") && obj.Get("fstype").IsString() ? (char *) obj.Get(
+            .fstype = obj.Has("fstype") && obj.Get("fstype").IsString() ? strdup(obj.Get(
                             "fstype")
-                    .ToString()
-                    .Utf8Value()
-                    .c_str()
+                                                                                         .ToString()
+                                                                                         .Utf8Value()
+                                                                                         .c_str())
                                                                         : nullptr,
             .fssize = obj.Has("fssize") && obj.Get("fstype").IsNumber() ? static_cast<uint64_t>(obj.Get(
                             "fssize")
@@ -282,39 +282,54 @@ Value lxc_create(const CallbackInfo &info) {
                                                                         : 0,
             .zfs{
                     .zfsroot = obj.Has("zfs") && obj.Get("zfs").IsObject() && obj.Get("zfs").ToObject().Has("zfsroot")
-                               ? (char *) obj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str()
+                               ? (char *) strdup(
+                                    obj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str())
                                : nullptr,
             },
             .lvm{
                     .vg = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("vg")
-                          ? (char *) obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str()
+                          ? (char *) strdup(obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str())
                           : nullptr,
                     .lv = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("lv")
-                          ? (char *) obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str()
+                          ? (char *) strdup(obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str())
                           : nullptr,
                     .thinpool = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("thinpool")
-                                ? (char *) obj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str()
+                                ? (char *) strdup(obj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str())
                                 : nullptr},
-            .dir = obj.Has("dir") && obj.Get("dir").IsString() ? (char *) obj.Get("dir").ToString().Utf8Value().c_str()
+            .dir = obj.Has("dir") && obj.Get("dir").IsString() ? (char *) strdup(obj.Get("dir").ToString().Utf8Value().c_str())
                                                                : nullptr,
             .rbd{
                     .rbdname = obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdname")
-                               ? (char *) obj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str()
+                               ? (char *) strdup(obj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str())
                                : nullptr,
                     .rbdpool = obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdpool")
-                               ? (char *) obj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str()
+                               ? (char *) strdup(obj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str())
                                : nullptr,
             },
     };
+
+
+    // Print each field in the struct
+    printf("fstype: %s\n", specs.fstype ? specs.fstype : "NULL");
+    printf("fssize: %lu\n", specs.fssize);
+    printf("zfsroot: %s\n", specs.zfs.zfsroot ? specs.zfs.zfsroot : "NULL");
+    printf("vg: %s\n", specs.lvm.vg ? specs.lvm.vg : "NULL");
+    printf("lv: %s\n", specs.lvm.lv ? specs.lvm.lv : "NULL");
+    printf("thinpool: %s\n", specs.lvm.thinpool ? specs.lvm.thinpool : "NULL");
+    printf("dir: %s\n", specs.dir ? specs.dir : "NULL");
+    printf("rbdname: %s\n", specs.rbd.rbdname ? specs.rbd.rbdname : "NULL");
+    printf("rbdpool: %s\n", specs.rbd.rbdpool ? specs.rbd.rbdpool : "NULL");
     // endregion
 
     // Convert JavaScript array to char* const argv[]
     Array argvArray = info[5].As<Array>();
     size_t argc = argvArray.Length();
-    char **argv = new char *[argc];
+    char **argv = new char *[argc+1];
     for (size_t i = 0; i < argc; ++i) {
         argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
+        printf("[%zu]: %s\n", i, argv[i]);
     }
+    printf("\n");
 
     // Call the C++ implementation
     bool result = ref.Data()->create(t, bdevtype, &specs, flags, argv);
@@ -324,6 +339,8 @@ Value lxc_create(const CallbackInfo &info) {
         free(const_cast<char *>(argv[i]));
     }
     delete[] argv;
+    free(const_cast<char *>(t));
+    free(const_cast<char *>(bdevtype));
 
     return Boolean::New(env, result);
 }
@@ -669,7 +686,7 @@ Value lxc_attach(const CallbackInfo &info) {
     //endregion
 
     // Get the container handle from JavaScript
-    External <LXC::Container> ref = info[0].As < External < LXC::Container >> ();
+    External<LXC::Container> ref = info[0].As<External<LXC::Container >>();
     return Number::New(info.Env(),
                        ref.Data()->attach(
                                info[1].ToBoolean(), //CLEAN_ENV

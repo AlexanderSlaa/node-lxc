@@ -398,7 +398,7 @@ type LXCBinding = {
      * @param flags LXC_CREATE_* options (currently only LXC_CREATE_QUIET is supported).
      * @param argsv
      */
-    lxc_create(ref: External, template: string, bdevtype: string | undefined, bdevspecs?: bdev_specs, flags?: number, argsv?: string[]): Container //TODO remake function C!!!
+    lxc_create(ref: External, template: string, bdevtype: string | undefined, bdevspecs?: bdev_specs, flags?: number, argsv?: string[]): boolean
     /**
      * Start the container.
      * @param ref

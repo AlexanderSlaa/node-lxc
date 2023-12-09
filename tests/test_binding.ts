@@ -1,8 +1,6 @@
-import {create} from "domain";
 import {LXC} from "../lib";
 import {Container} from "../lib/types/container";
-import {BDevType, LogLevel} from "../lib/types/type";
-import {LXC_CREATE} from "../lib/bindings";
+import {LogLevel} from "../lib/types/type";
 
 
 const assert = require("assert");
