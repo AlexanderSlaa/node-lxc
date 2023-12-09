@@ -9,7 +9,7 @@
 
 using namespace Napi;
 
-//region static function mappings
+// region static function mappings
 
 Object version_object(Env env) {
     auto versionObject = Object::New(env);
@@ -113,14 +113,12 @@ Value _lxc_container_new(const CallbackInfo &info) {
     return External<LXC::Container>::New(env, LXC::Container::New(
             env,
             info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr,
-            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr
-    ));
+            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr));
 }
 
-//endregion
+// endregion
 
-//region container
-
+// region container
 
 Value lxc_defined(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
@@ -212,7 +210,6 @@ Value lxc_seccomp_notify_fd_active(const CallbackInfo &info) {
     return Number::New(info.Env(), ref.Data()->seccomp_notify_fd_active());
 }
 
-
 Value lxc_set_timeout(const CallbackInfo &info) {
     if (!info[0].IsExternal() && !info[1].IsNumber()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
@@ -222,7 +219,6 @@ Value lxc_set_timeout(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Number::New(info.Env(), ref.Data()->set_timeout(info[0].ToNumber().Int32Value()));
 }
-
 
 Value lxc_devpts_fd(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
@@ -244,7 +240,6 @@ Value lxc_want_daemonize(const CallbackInfo &info) {
     return Boolean::New(info.Env(), ref.Data()->want_daemonize(info[1].ToBoolean().Value()));
 }
 
-
 Value lxc_want_close_all_fds(const CallbackInfo &info) {
     if (!info[0].IsExternal() && !info[1].IsBoolean()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
@@ -258,27 +253,33 @@ Value lxc_want_close_all_fds(const CallbackInfo &info) {
 Value lxc_create(const CallbackInfo &info) {
     Env env = info.Env();
 
-//    if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString() || !info[3].IsObject() ||
-//        !info[4].IsNumber() || !info[5].IsArray()) {
-//        TypeError::New(env, "Invalid parameter").ThrowAsJavaScriptException();
-//        return env.Null();
-//    }
+    if (!info[0].IsExternal()) {
+        TypeError::New(env, "No reference provided").ThrowAsJavaScriptException();
+        return env.Null();
+    }
 
     // Get the container handle from JavaScript
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
 
     // Parse container creation parameters
-    std::string t = info[1].ToString().Utf8Value();
-    std::string bdevtype = info[2].ToString().Utf8Value();
+    const char *t = info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr;
+    const char *bdevtype = info[2].IsString() ? info[2].ToString().Utf8Value().c_str() : nullptr;
+    int flags = info[4].IsNumber() ? info[4].ToNumber().Int32Value() : 0;
 
-    //region bdev_options
+    // region bdev_options
     auto obj = info[3].ToObject();
-
     bdev_specs specs{
             .fstype = obj.Has("fstype") && obj.Get("fstype").IsString() ? (char *) obj.Get(
-                    "fstype").ToString().Utf8Value().c_str() : nullptr,
+                            "fstype")
+                    .ToString()
+                    .Utf8Value()
+                    .c_str()
+                                                                        : nullptr,
             .fssize = obj.Has("fssize") && obj.Get("fstype").IsNumber() ? static_cast<uint64_t>(obj.Get(
-                    "fssize").ToNumber().Int64Value()) : 0,
+                            "fssize")
+                    .ToNumber()
+                    .Int64Value())
+                                                                        : 0,
             .zfs{
                     .zfsroot = obj.Has("zfs") && obj.Get("zfs").IsObject() && obj.Get("zfs").ToObject().Has("zfsroot")
                                ? (char *) obj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str()
@@ -286,42 +287,37 @@ Value lxc_create(const CallbackInfo &info) {
             },
             .lvm{
                     .vg = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("vg")
-                          ? (char *) obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str() : nullptr,
-                    .lv =obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("lv")
-                         ? (char *) obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str() : nullptr,
+                          ? (char *) obj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str()
+                          : nullptr,
+                    .lv = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("lv")
+                          ? (char *) obj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str()
+                          : nullptr,
                     .thinpool = obj.Has("lvm") && obj.Get("lvm").IsObject() && obj.Get("lvm").ToObject().Has("thinpool")
                                 ? (char *) obj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str()
-                                : nullptr
-            },
+                                : nullptr},
             .dir = obj.Has("dir") && obj.Get("dir").IsString() ? (char *) obj.Get("dir").ToString().Utf8Value().c_str()
                                                                : nullptr,
             .rbd{
-                    .rbdname= obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdname")
-                              ? (char *) obj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str()
-                              : nullptr,
-                    .rbdpool=obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdpool")
-                             ? (char *) obj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str()
-                             : nullptr,
+                    .rbdname = obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdname")
+                               ? (char *) obj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str()
+                               : nullptr,
+                    .rbdpool = obj.Has("rbd") && obj.Get("rbd").IsObject() && obj.Get("rbd").ToObject().Has("rbdpool")
+                               ? (char *) obj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str()
+                               : nullptr,
             },
     };
-    //endregion
-
-    int flags = info[4].ToNumber().Int32Value();
-
+    // endregion
 
     // Convert JavaScript array to char* const argv[]
     Array argvArray = info[5].As<Array>();
     size_t argc = argvArray.Length();
-    printf("arrayLen: %zu\n", argc);
-    char **argv = new char *[argc + 1];
+    char **argv = new char *[argc];
     for (size_t i = 0; i < argc; ++i) {
         argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
     }
-    argv[argc] = nullptr;
-    argc++;
 
     // Call the C++ implementation
-    bool result = ref.Data()->create(t.c_str(), bdevtype.c_str(), &specs, flags, argv, argc);
+    bool result = ref.Data()->create(t, bdevtype, &specs, flags, argv);
 
     // Free allocated memory
     for (size_t i = 0; i < argc; ++i) {
@@ -332,18 +328,16 @@ Value lxc_create(const CallbackInfo &info) {
     return Boolean::New(env, result);
 }
 
-
 Value lxc_start(const CallbackInfo &info) {
-    if (!info[0].IsExternal() && !info[1].IsNumber() && !info[2].IsArray()) {
+    if (!info[0].IsExternal() && !info[1].IsNumber()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
         return info.Env().Null();
     }
     // Get the container handle from JavaScript
-    External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
 
     char **argv = nullptr;
     size_t argc;
-    if (info[2].IsArray()) {     // Convert JavaScript array to char* const argv[]
+    if (info[2].IsArray()) { // Convert JavaScript array to char* const argv[]
         Array argvArray = info[2].As<Array>();
         argc = argvArray.Length();
         argv = new char *[argc + 1];
@@ -352,7 +346,9 @@ Value lxc_start(const CallbackInfo &info) {
         }
         argv[argc] = nullptr;
     }
+
     // Call the C++ implementation
+    External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     bool result = ref.Data()->start(info[1].ToNumber().Int32Value(), argv);
 
     if (argv != nullptr) {
@@ -365,7 +361,6 @@ Value lxc_start(const CallbackInfo &info) {
     return Boolean::New(info.Env(), result);
 }
 
-
 Value lxc_stop(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
@@ -375,7 +370,6 @@ Value lxc_stop(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(), ref.Data()->stop());
 }
-
 
 Value lxc_reboot(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
@@ -439,8 +433,7 @@ Value lxc_wait(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(),
                         ref.Data()->wait(info[1].ToString().Utf8Value().c_str(),
-                                         info[2].ToNumber().Int32Value())
-    );
+                                         info[2].ToNumber().Int32Value()));
 }
 
 Value lxc_get_config_item(const CallbackInfo &info) {
@@ -467,9 +460,7 @@ Value lxc_set_config_item(const CallbackInfo &info) {
                         ref.Data()->set_config_item(
 
                                 info[1].ToString().Utf8Value().c_str(),
-                                info[2].ToString().Utf8Value().c_str()
-                        )
-    );
+                                info[2].ToString().Utf8Value().c_str()));
 }
 
 void lxc_clear_config(const CallbackInfo &info) {
@@ -491,7 +482,6 @@ Boolean lxc_clear_config_item(const CallbackInfo &info) {
                         ref.Data()->clear_config_item(info[1].ToString().Utf8Value().c_str()));
 }
 
-
 Boolean lxc_get_running_config_item(const CallbackInfo &info) {
     if (!info[0].IsExternal() && !info[1].IsString()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
@@ -504,14 +494,14 @@ Boolean lxc_get_running_config_item(const CallbackInfo &info) {
 }
 
 String lxc_get_keys(const CallbackInfo &info) {
-    if (!info[0].IsExternal() && !info[1].IsString()) {
+    if (!info[0].IsExternal()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
     }
     // Get the container handle from JavaScript
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return String::New(info.Env(),
                        ref.Data()->get_keys(
-                               info[1].ToString().Utf8Value().c_str()));
+                               info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : ""));
 }
 
 String lxc_get_cgroup_item(const CallbackInfo &info) {
@@ -537,7 +527,6 @@ Boolean lxc_set_cgroup_item(const CallbackInfo &info) {
                                 info[2].ToString().Utf8Value().c_str()));
 }
 
-
 String lxc_get_config_path(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
@@ -547,7 +536,6 @@ String lxc_get_config_path(const CallbackInfo &info) {
     return String::New(info.Env(),
                        ref.Data()->get_config_path());
 }
-
 
 Boolean lxc_set_config_path(const CallbackInfo &info) {
     if (!info[0].IsExternal() && !info[1].IsString()) {
@@ -559,7 +547,6 @@ Boolean lxc_set_config_path(const CallbackInfo &info) {
                         ref.Data()->set_config_path(
                                 info[1].ToString().Utf8Value().c_str()));
 }
-
 
 Boolean lxc_load_config(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
@@ -583,7 +570,6 @@ Boolean lxc_save_config(const CallbackInfo &info) {
                                 info[1].ToString().Utf8Value().c_str()));
 }
 
-
 Boolean lxc_clone(const CallbackInfo &info) {
     if (!info[0].IsExternal() && !info[1].IsString() && !info[2].IsString() && !info[3].IsNumber() &&
         !info[4].IsString()) {
@@ -596,9 +582,7 @@ Boolean lxc_clone(const CallbackInfo &info) {
                                 info[1].ToString().Utf8Value().c_str(),
                                 info[2].ToString().Utf8Value().c_str(),
                                 info[3].ToNumber().Int32Value(),
-                                info[4].ToString().Utf8Value().c_str()
-                        )
-    );
+                                info[4].ToString().Utf8Value().c_str()));
 }
 
 Number lxc_console_getfd(const CallbackInfo &info) {
@@ -609,7 +593,6 @@ Number lxc_console_getfd(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Number::New(info.Env(), ref.Data()->console_getfd(info[1].ToNumber().Int32Value()));
 }
-
 
 Boolean lxc_console(const CallbackInfo &info) {
     if (!info[0].IsExternal() && !info[1].IsNumber() && !info[2].IsNumber() && !info[3].IsNumber() &&
@@ -625,9 +608,84 @@ Boolean lxc_console(const CallbackInfo &info) {
                                 info[2].ToNumber().Int32Value(),
                                 info[3].ToNumber().Int32Value(),
                                 info[4].ToNumber().Int32Value(),
-                                info[5].ToNumber().Int32Value()
-                        )
-    );
+                                info[5].ToNumber().Int32Value()));
+}
+
+Value lxc_attach(const CallbackInfo &info) {
+    if (
+            !info[0].IsExternal() && //REF
+            !info[1].IsBoolean() && //CLEAN_ENV
+            !info[2].IsNumber() && //NAMESPACE
+            !info[3].IsNumber() && //PERSIONALITY
+            !info[4].IsNumber() && //UID
+            !info[5].IsNumber() && //GUID
+            !info[6].IsArray() && //GROUPS
+            !info[7].IsArray() && //STDIO
+            !info[8].IsString() && //CWD
+            !info[9].IsArray() && //ENV
+            !info[10].IsArray() && //KEEP_ENV
+            !info[11].IsNumber() //FLAGS
+            ) {
+        TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
+    }
+
+
+
+    //region env_vars
+    // Convert JavaScript array to char* const argv[]
+    Array env_array = info[9].As<Array>();
+    size_t env_vars_len = env_array.Length();
+    char **env_vars = new char *[env_vars_len];
+    for (size_t i = 0; i < env_vars_len; ++i) {
+        env_vars[i] = strdup(env_array.Get(i).ToString().Utf8Value().c_str());
+    }
+    //endregion
+
+    //region keep_env
+    // Convert JavaScript array to char* const argv[]
+    Array keep_env_array = info[10].As<Array>();
+    size_t keep_env_array_len = keep_env_array.Length();
+    char **keep_env_vars = keep_env_array_len > 0 ? new char *[keep_env_array_len] : nullptr;
+    if (keep_env_array_len > 0) {
+        for (size_t i = 0; i < keep_env_array_len; ++i) {
+            keep_env_vars[i] = strdup(keep_env_array.Get(i).ToString().Utf8Value().c_str());
+        }
+    }
+    //endregion
+
+    //region lxc_group_t
+    // Convert JavaScript array to char* const argv[]
+    Array groups_array = info[6].As<Array>();
+    size_t groups_array_len = groups_array.Length();
+    lxc_groups_t groups = {
+            .size =  groups_array_len,
+            .list = groups_array_len > 0 ? new gid_t[groups_array_len] : nullptr
+    };
+    if (groups.list != nullptr) {
+        for (size_t i = 0; i < keep_env_array_len; ++i) {
+            groups_array[i] = strdup(groups_array.Get(i).ToString().Utf8Value().c_str());
+        }
+    }
+    //endregion
+
+    // Get the container handle from JavaScript
+    External <LXC::Container> ref = info[0].As < External < LXC::Container >> ();
+    return Number::New(info.Env(),
+                       ref.Data()->attach(
+                               info[1].ToBoolean(), //CLEAN_ENV
+                               info[2].ToNumber().Int32Value(), //NAMESPACE
+                               info[3].ToNumber().Int64Value(), // PERSONALITY
+                               info[4].ToNumber().Int32Value(), //UID
+                               info[5].ToNumber().Int32Value(), //GUID
+                               groups, //GROUPS
+                               info[7].As<Array>().Get((uint32_t) 0).ToNumber().Int32Value(), //STDINFD
+                               info[7].As<Array>().Get((uint32_t) 1).ToNumber().Int32Value(), //STDOUTFD
+                               info[7].As<Array>().Get((uint32_t) 2).ToNumber().Int32Value(), //STDERRFD
+                               (char *) info[8].ToString().Utf8Value().c_str(),
+                               env_vars,
+                               keep_env_vars,
+                               info[11].ToNumber().Int32Value()
+                       ));
 }
 
 Array lxc_get_interfaces(const CallbackInfo &info) {
@@ -673,7 +731,6 @@ Array lxc_get_ips(const CallbackInfo &info) {
     return result;
 }
 
-
 Value lxc_add_device_node(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString()) {
         TypeError::New(info.Env(), "Invalid parameters").ThrowAsJavaScriptException();
@@ -683,10 +740,8 @@ Value lxc_add_device_node(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(), ref.Data()->add_device_node(
             info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr,
-            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr
-    ));
+            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr));
 }
-
 
 Value lxc_remove_device_node(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString()) {
@@ -697,10 +752,8 @@ Value lxc_remove_device_node(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(), ref.Data()->remove_device_node(
             info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr,
-            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr
-    ));
+            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr));
 }
-
 
 Value lxc_rename(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsString()) {
@@ -711,7 +764,6 @@ Value lxc_rename(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(), ref.Data()->rename(info[1].ToString().Utf8Value().c_str()));
 }
-
 
 Value lxc_checkpoint(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsBoolean() || !info[3].IsBoolean()) {
@@ -724,8 +776,7 @@ Value lxc_checkpoint(const CallbackInfo &info) {
                         ref.Data()->checkpoint(
                                 (char *) info[1].ToString().Utf8Value().c_str(),
                                 info[2].ToBoolean(),
-                                info[3].ToBoolean())
-    );
+                                info[3].ToBoolean()));
 }
 
 Value lxc_restore(const CallbackInfo &info) {
@@ -738,10 +789,8 @@ Value lxc_restore(const CallbackInfo &info) {
     return Boolean::New(info.Env(),
                         ref.Data()->restore(
                                 (char *) info[1].ToString().Utf8Value().c_str(),
-                                info[2].ToBoolean())
-    );
+                                info[2].ToBoolean()));
 }
-
 
 Value lxc_migrate(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsNumber() || !info[2].IsObject()) {
@@ -750,37 +799,57 @@ Value lxc_migrate(const CallbackInfo &info) {
     }
 
     auto optsObj = info[2].ToObject();
-    struct migrate_opts opts = {
-            .directory = (char *) optsObj.Get("directory").ToString().Utf8Value().c_str(),
-            .verbose = optsObj.Has("verbose") && optsObj.Get("verbose").ToBoolean(),
-            .stop = optsObj.Has("stop") && optsObj.Get("stop").ToBoolean(),
-            .predump_dir = optsObj.Has("predump_dir") ? (char *) optsObj.Get(
-                    "predump_dir").ToString().Utf8Value().c_str() : nullptr,
-            .pageserver_address = optsObj.Has("pageserver_address") ? (char *) optsObj.Get(
-                    "pageserver_address").ToString().Utf8Value().c_str() : nullptr,
-            .pageserver_port = optsObj.Has("pageserver_port") ? (char *) optsObj.Get(
-                    "pageserver_port").ToString().Utf8Value().c_str() : nullptr,
+    struct migrate_opts opts =
+            {
+                    .directory = (char *) optsObj.Get("directory").ToString().Utf8Value().c_str(),
+                    .verbose = optsObj.Has("verbose") && optsObj.Get("verbose").ToBoolean(),
+                    .stop = optsObj.Has("stop") && optsObj.Get("stop").ToBoolean(),
+                    .predump_dir = optsObj.Has("predump_dir") ? (char *) optsObj.Get(
+                                    "predump_dir")
+                            .ToString()
+                            .Utf8Value()
+                            .c_str()
+                                                              : nullptr,
+                    .pageserver_address = optsObj.Has("pageserver_address") ? (char *) optsObj.Get(
+                                    "pageserver_address")
+                            .ToString()
+                            .Utf8Value()
+                            .c_str()
+                                                                            : nullptr,
+                    .pageserver_port = optsObj.Has("pageserver_port") ? (char *) optsObj.Get(
+                                    "pageserver_port")
+                            .ToString()
+                            .Utf8Value()
+                            .c_str()
+                                                                      : nullptr,
 #if VERSION_AT_LEAST(2, 0, 1)
-            .preserves_inodes = optsObj.Has("preserves_inodes") && optsObj.Get("preserves_inodes").ToBoolean(),
+                    .preserves_inodes = optsObj.Has("preserves_inodes") && optsObj.Get("preserves_inodes").ToBoolean(),
 #endif
 #if VERSION_AT_LEAST(2, 0, 4)
-            .action_script = optsObj.Has("action_script") ? (char *) optsObj.Get(
-                    "action_script").ToString().Utf8Value().c_str() : nullptr,
-            .disable_skip_in_flight = optsObj.Has("disable_skip_in_flight") && optsObj.Get(
-                    "disable_skip_in_flight").ToBoolean(),
+                    .action_script = optsObj.Has("action_script") ? (char *) optsObj.Get(
+                                    "action_script")
+                            .ToString()
+                            .Utf8Value()
+                            .c_str()
+                                                                  : nullptr,
+                    .disable_skip_in_flight = optsObj.Has("disable_skip_in_flight") && optsObj.Get(
+                                    "disable_skip_in_flight")
+                            .ToBoolean(),
 #endif
-            .ghost_limit = optsObj.Has("ghost_limit") ? optsObj.Get("ghost_limit").ToNumber().Uint32Value() : 0,
+                    .ghost_limit = optsObj.Has("ghost_limit") ? optsObj.Get("ghost_limit").ToNumber().Uint32Value() : 0,
 #if VERSION_AT_LEAST(3, 0, 0)
-            .features_to_check = optsObj.Has("features_to_check") ? optsObj.Get(
-                    "features_to_check").ToNumber().Uint32Value() : 0,
+                    .features_to_check = optsObj.Has("features_to_check") ? optsObj.Get(
+                                    "features_to_check")
+                            .ToNumber()
+                            .Uint32Value()
+                                                                          : 0,
 #endif
-    };
+            };
     // Get the container handle from JavaScript
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Number::New(info.Env(),
                        ref.Data()->migrate(info[0].ToNumber().Int32Value(), &opts));
 }
-
 
 Value lxc_attach_interface(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString()) {
@@ -791,10 +860,8 @@ Value lxc_attach_interface(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(), ref.Data()->attach_interface(
             info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr,
-            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr
-    ));
+            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr));
 }
-
 
 Value lxc_detach_interface(const CallbackInfo &info) {
     if (!info[0].IsExternal() || !info[1].IsString() || !info[2].IsString()) {
@@ -805,8 +872,7 @@ Value lxc_detach_interface(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Boolean::New(info.Env(), ref.Data()->detach_interface(
             info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr,
-            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr
-    ));
+            info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr));
 }
 
 Value lxc_error_num(const CallbackInfo &info) {
@@ -818,7 +884,6 @@ Value lxc_error_num(const CallbackInfo &info) {
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     return Number::New(info.Env(), ref.Data()->error_num());
 }
-
 
 Value lxc_error_str(const CallbackInfo &info) {
     if (!info[0].IsExternal()) {
@@ -834,20 +899,20 @@ Value lxc_error_str(const CallbackInfo &info) {
     return String::New(info.Env(), err_str);
 }
 
-//Value lxc_console_log(const CallbackInfo &info) {
-//    if (!info[0].IsExternal()) {
-//        TypeError::New(info.Env(), "Invalid parameters").ThrowAsJavaScriptException();
-//        return info.Env().Null();
-//    }
-//    // Get the container handle from JavaScript
-//    External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
-//    return Number::New(info.Env(), ref.Data()->error_num());
-//}
+// Value lxc_console_log(const CallbackInfo &info) {
+//     if (!info[0].IsExternal()) {
+//         TypeError::New(info.Env(), "Invalid parameters").ThrowAsJavaScriptException();
+//         return info.Env().Null();
+//     }
+//     // Get the container handle from JavaScript
+//     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
+//     return Number::New(info.Env(), ref.Data()->error_num());
+// }
 
-//endregion
+// endregion
 
 Object Init(Env env, Object exports) {
-    //region general
+    // region general
     exports.Set(String::New(env, "version"), version_object(env));
     exports.Set(String::New(env, "get_global_config_item"), Function::New(env, get_global_config_item));
     exports.Set(String::New(env, "list_all_containers"), Function::New(env, _list_all_containers));
@@ -856,8 +921,8 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "lxc_container_new"), Function::New(env, _lxc_container_new));
     exports.Set(String::New(env, "lxc_has_api_extension"), Function::New(env, _lxc_has_api_extension));
     exports.Set(String::New(env, "lxc_config_item_is_supported"), Function::New(env, config_item_is_supported));
-    //endregion
-    //region container
+    // endregion
+    // region container
     exports.Set(String::New(env, "lxc_defined"), Function::New(env, lxc_defined));
     exports.Set(String::New(env, "lxc_state"), Function::New(env, lxc_state));
     exports.Set(String::New(env, "lxc_running"), Function::New(env, lxc_running));
@@ -865,6 +930,8 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "lxc_unfreeze"), Function::New(env, lxc_unfreeze));
     exports.Set(String::New(env, "lxc_init_pid"), Function::New(env, lxc_init_pid));
     exports.Set(String::New(env, "lxc_init_pidfd"), Function::New(env, lxc_init_pidfd));
+    exports.Set(String::New(env, "lxc_load_config"), Function::New(env, lxc_load_config));
+
     exports.Set(String::New(env, "lxc_seccomp_notify_fd"), Function::New(env, lxc_seccomp_notify_fd));
     exports.Set(String::New(env, "lxc_seccomp_notify_fd_active"), Function::New(env, lxc_seccomp_notify_fd_active));
     exports.Set(String::New(env, "lxc_set_timeout"), Function::New(env, lxc_set_timeout));
@@ -890,14 +957,13 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "lxc_set_cgroup_item"), Function::New(env, lxc_set_cgroup_item));
     exports.Set(String::New(env, "lxc_get_config_path"), Function::New(env, lxc_get_config_path));
     exports.Set(String::New(env, "lxc_set_config_path"), Function::New(env, lxc_set_config_path));
-    exports.Set(String::New(env, "lxc_load_config"), Function::New(env, lxc_load_config));
     exports.Set(String::New(env, "lxc_save_config"), Function::New(env, lxc_save_config));
     exports.Set(String::New(env, "lxc_clone"), Function::New(env, lxc_clone));
     exports.Set(String::New(env, "lxc_console_getfd"), Function::New(env, lxc_console_getfd));
     exports.Set(String::New(env, "lxc_console"), Function::New(env, lxc_console));
+    exports.Set(String::New(env, "lxc_attach"), Function::New(env, lxc_attach));
     exports.Set(String::New(env, "lxc_get_interfaces"), Function::New(env, lxc_get_interfaces));
     exports.Set(String::New(env, "lxc_get_ips"), Function::New(env, lxc_get_ips));
-
 
     exports.Set(String::New(env, "lxc_add_device_node"), Function::New(env, lxc_add_device_node));
     exports.Set(String::New(env, "lxc_remove_device_node"), Function::New(env, lxc_remove_device_node));
@@ -907,13 +973,11 @@ Object Init(Env env, Object exports) {
     exports.Set(String::New(env, "lxc_migrate"), Function::New(env, lxc_migrate));
     exports.Set(String::New(env, "lxc_attach_interface"), Function::New(env, lxc_attach_interface));
     exports.Set(String::New(env, "lxc_detach_interface"), Function::New(env, lxc_detach_interface));
-    exports.Set(String::New(env, "lxc_detach_interface"), Function::New(env, lxc_detach_interface));
     exports.Set(String::New(env, "lxc_error_num"), Function::New(env, lxc_error_num));
     exports.Set(String::New(env, "lxc_error_str"), Function::New(env, lxc_error_str));
 
-    //endregion
+    // endregion
     return exports;
 }
-
 
 NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init)

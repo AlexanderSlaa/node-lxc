@@ -1,8 +1,8 @@
-import { create } from "domain";
-import { LXC } from "../lib";
-import { Container } from "../lib/types/container";
-import { bdev_type, LogLevel } from "../lib/types/type";
-import { LXC_CREATE } from "../lib/bindings";
+import {create} from "domain";
+import {LXC} from "../lib";
+import {Container} from "../lib/types/container";
+import {BDevType, LogLevel} from "../lib/types/type";
+import {LXC_CREATE} from "../lib/bindings";
 
 
 const assert = require("assert");
@@ -25,20 +25,13 @@ console.log("Creating container...\n")
 c.logFile = "./test_ct/" + c.name + ".log";
 c.logLevel = LogLevel.DEBUG;
 
-// process.stderr.on("data", (d) => {
-//     console.log(d.toString());
-// })
 
-// process.stdout.on("data", (d) => {
-//     console.log(d.toString());
-// })
+console.log(c.create({
+    template: "download",
+    args: ["--dist", "ubuntu", "--release", "jammy", "--arch", "amd64"]
+}))
 
-// process.stdin.on("data", (d) => {
-//     console.log(d.toString());
-// })
-
-console.log(c.create("download", bdev_type.dir, {}, 0, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]))
-console.error(c.error);
+c.attachShell({})
 
 //endregion
 // console.log("Starting the container ....");
