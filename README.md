@@ -8,9 +8,12 @@ apt update -y && apt upgrade -y
 ```shell
 apt install gcc g++ cmake
 ```
-3. Installing LXC-utils
+3. Installing LXC and the needed development files
 ```shell
 apt install lxc -y lxc-dev -y
+```
+3.1. Checking LXC configuration
+```shell
 lxc-checkconfig
 ```
 the resulting `lxc-checkconfig` will show something like
