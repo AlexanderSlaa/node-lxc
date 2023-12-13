@@ -1,10 +1,11 @@
 ## Development Prerequisites
-1. Install NodeJS
+1. Install NodeJS </br>
 [Install NodeJS from distribution](https://github.com/nodesource/distributions#installation-instructions)
 2. Installing NAPI build-tools
-```bash
-apt update -y
-apt upgrade -y
+```shell
+apt update -y && apt upgrade -y
+```
+```shell
 apt install gcc g++ cmake
 ```
 3. Installing LXC-utils
