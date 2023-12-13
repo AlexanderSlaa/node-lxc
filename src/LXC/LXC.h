@@ -245,11 +245,8 @@ namespace LXC
         {
             if (strncmp(t, "none", strlen(t)) == 0)
             {
-                return this->container->create(this->container, nullptr, bdevtype, specs, flags, argv);
+                t = nullptr;
             }
-            printf("template: %s\n",t);
-            printf("bdevtype: %s\n",bdevtype);
-            printf("flags: %d\n", flags);
             return this->container->create(this->container, t, bdevtype, specs, flags, argv);
         }
 
