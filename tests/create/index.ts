@@ -3,15 +3,15 @@ import { BDevType, LogLevel } from "../../lib/types/type";
 
 //TODO NOT WORKING!
 
-const container = Container.New("test");
+const container = Container.New("rubik");
 
 container.logLevel = LogLevel.TRACE;
-container.logFile = "./test.log";
+container.logFile = "./rubik.log";
 
 const created = container.create({
     template: "download",
     bdevtype: BDevType.dir,
-    args: ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]
+    args: ["--dist", "ubuntu", "--release", "jammy", "--arch", "amd64"]
 })
 
 if (!created) {

@@ -1,6 +1,14 @@
 import {Container} from "./types/container";
 
-export const binding = <LXCBinding>require('../build/Release/node-lxc');
+let $binding;
+if (process.env?.ENVIRONMENT === "PRODUCTION") {
+    $binding = <LXCBinding>require('../build/Release/node-lxc');
+}else{
+    $binding = <LXCBinding>require('../build/Debug/node-lxc');
+}
+
+export const binding = $binding;
+
 
 export class External<T = any> {
     private Data(): T {

@@ -564,7 +564,7 @@ namespace LXC
             attach_options.extra_env_vars = extra_env_vars;
             attach_options.extra_keep_env = extra_keep_env;
 
-            ret = this->container->attach(this->container, lxc_attach_run_shell, NULL, &attach_options, &pid);
+//            ret = this->container->attach(this->container, (lxc_attach_exec_t)lxc_attach_run_shell, NULL, &attach_options, &pid);
             if (ret < 0)
                 return ret;
 
@@ -754,6 +754,6 @@ namespace LXC
         }
     };
 
-};
+}
 
 #endif // NODE_LXC_LXC_H

@@ -6,8 +6,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.9.2",
-    "ts-node": "^10.9.1",
-    "cmake-js": "^7.1.1"
+    "cmake-js": "^7.1.1",
+    "node-gyp": "^10.0.1",
+    "ts-node": "^10.9.1"
   },
   "scripts": {
     "install": "cmake-js compile",
@@ -16,6 +17,7 @@
     "tests/list": "ts-node tests/list/index.ts",
     "tests/list_keys": "ts-node tests/list_keys/index.ts",
     "tests/start": "ts-node tests/start/index.ts",
+    "tests/stop": "ts-node tests/stop/index.ts",
     "tests/create": "ts-node tests/create/index.ts",
     "start": "node index.js",
     "rebuild:dev": "node-gyp rebuild --debug",

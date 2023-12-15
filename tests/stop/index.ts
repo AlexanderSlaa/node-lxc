@@ -4,15 +4,14 @@
 
 import { Container } from "../../lib/types/container";
 
-const containers = Container.List().filter(c => !c.isRunning);
+const containers = Container.List().filter(c => c.isRunning);
 
 if (containers.length == 0) {
-    console.warn("WARN:\tNo containers to be started");
+    console.warn("WARN:\tNo containers to stop");
     process.exit(0);
 }
 
-console.log("CURRENT STATE: ", containers[0].state);
-console.log(containers[0].start());
-console.log("NEW STATE:", containers[0].state);
+console.log(`${containers[0].name} CURRENT STATE: `, containers[0].state);
+console.log(containers[0].stop());
+console.log(`${containers[0].name} NEW STATE:`, containers[0].state);
 
-containers.forEach(c => console.log(c.state));

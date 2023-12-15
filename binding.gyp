@@ -2,9 +2,10 @@
   'targets': [
     {
       'target_name': 'node-lxc',
-      'sources': [ 'src/node-lxc.cc', 'src/lxc-bindings.cc' ],
-      'include_dirs': ["<!@(node -p \"require('node-addon-api').include\")"],
+      'sources': [ 'src/node-lxc.cc', 'src/LXC/LXC.h' ],
+      'include_dirs': ["<!@(node -p \"require('node-addon-api').include\")","/usr/include/lxc"],
       'dependencies': ["<!(node -p \"require('node-addon-api').gyp\")"],
+      'libraries': ["/usr/lib/x86_64-linux-gnu/liblxc.so.1.7.0"],
       'cflags!': [ '-fno-exceptions' ],
       'cflags_cc!': [ '-fno-exceptions' ],
       'xcode_settings': {

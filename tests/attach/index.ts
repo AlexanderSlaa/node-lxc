@@ -13,16 +13,19 @@ const stdio: [number, number, number] = [
     process.stderr.fd
 ]
 
-if (!containers[0].isRunning) {
-    console.log(containers[0].configPath)
-    containers[0].logLevel = LogLevel.TRACE;
-    containers[0].logFile = "./rubik.log";
-    containers[0].daemonize();
-    console.log(containers[0].start());
+const rubik = containers.find((c) => c.name == "rubik")
+
+if (!rubik.isRunning) {
+    console.log(rubik.configPath)
+    rubik.logLevel = LogLevel.TRACE;
+    rubik.logFile = "./rubik.log";
+    console.log(rubik.daemonize());
+    console.log(rubik.start());
+    console.log(rubik.error);
 }
 
-console.log(containers[0].attachShell({ stdio }));
+console.log(rubik.attachShell({ stdio }));
 
-console.log(containers[0].stop());
+// console.log(containers[0].stop());
 
 console.log(containers);

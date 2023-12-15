@@ -1,6 +1,7 @@
-import {LXC} from "../lib";
-import {Container} from "../lib/types/container";
-import {LogLevel} from "../lib/types/type";
+import { randomUUID } from "node:crypto";
+import { LXC } from "../lib";
+import { Container } from "../lib/types/container";
+import { LogLevel } from "../lib/types/type";
 
 
 const assert = require("assert");
@@ -12,15 +13,17 @@ let result = LXC.version;
 console.log(result);
 console.log(LXC.default_config_path());
 
+const name = randomUUID();
+
 //region create
-const c = Container.New("test12");
+const c = Container.New(name);
 if (!c) {
     throw new Error("Failed to create container");
 }
 
 console.log("Creating container...\n")
 
-c.logFile = "./test_ct/" + c.name + ".log";
+c.logFile = `./${name}/` + c.name + ".log";
 c.logLevel = LogLevel.DEBUG;
 
 
@@ -29,7 +32,15 @@ console.log(c.create({
     args: ["--dist", "ubuntu", "--release", "jammy", "--arch", "amd64"]
 }))
 
-c.attachShell({})
+
+
+const stdio: [number, number, number] = [
+    process.stdin.fd,
+    process.stdout.fd,
+    process.stderr.fd
+]
+
+console.log(c.attachShell({ stdio }));
 
 //endregion
 // console.log("Starting the container ....");

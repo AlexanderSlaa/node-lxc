@@ -1,7 +1,6 @@
 //
 // Created by alexander-slaa on 11/23/23.
 //
-
 #include <node/node_api.h>
 #include <napi.h>
 
@@ -380,86 +379,45 @@ Value lxc_create(const CallbackInfo &info)
     return Boolean::New(env, result);
 }
 
-// Value lxc_create(const CallbackInfo &info)
-// {
-//     Env env = info.Env();
-
-//     // Get the container handle from JavaScript
-//     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
-
-//     bdev_specs specs{
-//         .fstype = NULL,
-//         .fssize = 0,
-//         .zfs{
-//             .zfsroot = NULL},
-//         .lvm{
-//             .vg = NULL,
-//             .lv = NULL,
-//             .thinpool = NULL},
-//         .dir = NULL,
-//         .rbd{
-//             .rbdname = NULL,
-//             .rbdpool = NULL,
-//         },
-
-//     };
-
-//     // Create an array of C-style strings
-//     char **argv = new char *[7];
-
-//     argv[0] = new char[]{"--dist"};
-
-//     argv[1] = new char[]{"ubuntu"};
-
-//     argv[2] = new char[]{"--release"};
-//     argv[3] = new char[]{"lunar"};
-//     argv[4] = new char[]{"--arch"};
-//     argv[5] = new char[]{"amd64"};
-//     argv[6] = nullptr;
-
-//     // Call the C++ implementation
-//     bool result = ref.Data()->create("download", "dir", &specs, 1, argv);
-
-//     // Free allocated memory
-//     return Boolean::New(env, result);
-// }
-
 Value lxc_start(const CallbackInfo &info)
 {
-    if (!info[0].IsExternal() && !info[1].IsNumber())
+    if (!info[0].IsExternal())
     {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
         return info.Env().Null();
     }
     // Get the container handle from JavaScript
 
+    // Convert JavaScript array to char* const argv[]
+    Array argvArray = info[2].As<Array>();
+    size_t argc = argvArray.Length();
     char **argv = nullptr;
-    size_t argc;
-    if (info[2].IsArray())
-    { // Convert JavaScript array to char* const argv[]
-        Array argvArray = info[2].As<Array>();
-        argc = argvArray.Length();
+    if (argc > 0)
+    {
         argv = new char *[argc + 1];
         for (size_t i = 0; i < argc; ++i)
         {
+            // Allocate memory and copy the content of each argument
             argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
         }
         argv[argc] = nullptr;
     }
-
     // Call the C++ implementation
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     bool result = ref.Data()->start(info[1].ToNumber().Int32Value(), argv);
 
-    if (argv != nullptr)
+    if (!result)
     {
-        // Free allocated memory
-        for (size_t i = 0; i < argc; ++i)
-        {
-            free(const_cast<char *>(argv[i]));
-        }
-        delete[] argv;
+        printf("error: %s", ref.Data()->error_str());
     }
+
+    // Free allocated memory
+    for (size_t i = 0; i < argc; ++i)
+    {
+        free(argv[i]);
+    }
+    // Free the array itself
+    delete[] argv;
     return Boolean::New(info.Env(), result);
 }
 

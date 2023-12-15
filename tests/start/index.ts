@@ -15,4 +15,4 @@ console.log("CURRENT STATE: ", containers[0].state);
 console.log(containers[0].start());
 console.log("NEW STATE:", containers[0].state);
 
-containers.forEach(c => console.log(c.state));
+containers.forEach(c => console.log(c.name,c.state));
