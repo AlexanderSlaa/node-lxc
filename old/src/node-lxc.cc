@@ -761,7 +761,7 @@ Value lxc_attach(const CallbackInfo &info)
         .list = groups_array_len > 0 ? new gid_t[groups_array_len] : nullptr};
     if (groups.list != nullptr)
     {
-        for (size_t i = 0; i < keep_env_array_len; ++i)
+        for (size_t i = 0; i < groups_array_len; ++i)
         {
             groups_array[i] = strdup(groups_array.Get(i).ToString().Utf8Value().c_str());
         }

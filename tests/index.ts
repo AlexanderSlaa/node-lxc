@@ -1,4 +1,6 @@
-import {Container, LXC_CREATE, LXC_LOGLEVEL} from "../index";
+import { Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL } from "../index";
+
+console.log(`LXC version(${LXC.version})`);
 
 const c = new Container("test");
 
@@ -11,7 +13,9 @@ console.log("created", c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dis
 
 console.log("started", c.start(0, []));
 
+const attach_flags = LXC_ATTACH.DEFAULT;
 
+c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags);
 
 
 

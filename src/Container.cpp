@@ -2,12 +2,25 @@
 // Created by alexanderslaa on 12/16/23.
 //
 
+#include <sys/wait.h>
 #include "Container.h"
 
 Napi::Object Container::Init(Napi::Env env, Napi::Object exports)
 {
     Napi::Function func =
-        DefineClass(env, "Container", {InstanceAccessor("name", &Container::GetName, nullptr), InstanceAccessor("state", &Container::GetState, nullptr), InstanceMethod("start", &Container::Start), InstanceMethod("stop", &Container::Stop), InstanceMethod("create", &Container::Create), InstanceMethod("getConfigItem", &Container::GetConfigItem), InstanceMethod("setConfigItem", &Container::SetConfigItem), InstanceMethod("clearConfigItem", &Container::ClearConfigItem), InstanceMethod("clearConfig", &Container::ClearConfig)});
+        DefineClass(env, "Container", {
+                                          InstanceAccessor("name", &Container::GetName, nullptr),
+                                          InstanceAccessor("state", &Container::GetState, nullptr),
+                                          InstanceMethod("start", &Container::Start),
+                                          InstanceMethod("stop", &Container::Stop),
+                                          InstanceMethod("create", &Container::Create),
+                                          InstanceMethod("getConfigItem", &Container::GetConfigItem),
+                                          InstanceMethod("setConfigItem", &Container::SetConfigItem),
+                                          InstanceMethod("clearConfigItem", &Container::ClearConfigItem),
+                                          InstanceMethod("clearConfig", &Container::ClearConfig),
+                                          InstanceMethod("attach", &Container::Attach),
+                                          InstanceMethod("exec", &Container::Exec),
+                                      });
 
     auto constructor = Napi::Persistent(func);
     constructor.SuppressDestruct(); // Prevent the destructor, as it will be handled by N-API.
@@ -93,6 +106,12 @@ Napi::Value Container::Stop(const Napi::CallbackInfo &info)
 Napi::Value Container::Create(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
+
+    if (_container->is_defined(_container))
+    {
+        Napi::Error::New(env, "Container already exits").ThrowAsJavaScriptException();
+        return env.Null();
+    }
 
     if (info.Length() <= 4 || !info[0].IsString() || !info[1].IsString() || !info[2].IsObject() ||
         !info[3].IsNumber() || !info[4].IsArray())
@@ -188,6 +207,12 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info)
 
     // Call the create function
     auto res = _container->create(_container, t, bdevtype, &bdevSpecs, flags, argv);
+    if (!res)
+    {
+        Napi::Error::New(env, strerror(errno)).ThrowAsJavaScriptException();
+        delete[] argv; // Cleanup on error
+        return env.Null();
+    }
 
     // Cleanup: Free allocated memory
     for (size_t i = 0; i < jsArray.Length(); ++i)
@@ -258,4 +283,186 @@ Napi::Value Container::ClearConfigItem(const Napi::CallbackInfo &info)
 void Container::ClearConfig(const Napi::CallbackInfo &info)
 {
     _container->clear_config(_container);
+}
+
+int wait_for_pid_status(pid_t pid)
+{
+    int status, ret;
+
+again:
+    ret = waitpid(pid, &status, 0);
+    if (ret == -1)
+    {
+        if (errno == EINTR)
+            goto again;
+        return -1;
+    }
+    if (ret != pid)
+        goto again;
+    return status;
+}
+
+Napi::Value Container::Attach(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() <= 0 ||
+        !info[0].IsBoolean() || // CLEAN_ENV
+        !info[1].IsNumber() ||  // NAMESPACE
+        !info[2].IsNumber() ||  // PERSIONALITY
+        !info[3].IsNumber() ||  // UID
+        !info[4].IsNumber() ||  // GUID
+        !info[5].IsArray() ||   // GROUPS
+        !info[6].IsArray() ||   // STDIO
+        !info[7].IsString() ||  // CWD
+        !info[8].IsArray() ||   // ENV
+        !info[9].IsArray() ||   // KEEP_ENV
+        !info[10].IsNumber()    // FLAGS
+    )
+    {
+        Napi::TypeError::New(env, "Invalid parameters").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    if (!_container->is_running(_container))
+    {
+        Napi::Error::New(env, "Container is not running").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    int ret;
+    pid_t pid;
+
+    lxc_attach_options_t attach_options = LXC_ATTACH_OPTIONS_DEFAULT;
+    attach_options.attach_flags = info[10].ToNumber().Int32Value();
+
+    attach_options.env_policy = LXC_ATTACH_KEEP_ENV;
+    if (info[0].ToBoolean())
+    {
+        attach_options.env_policy = LXC_ATTACH_CLEAR_ENV;
+    }
+
+    attach_options.namespaces = info[1].ToNumber().Int32Value();
+    attach_options.personality = info[2].ToNumber().Int32Value();
+
+    attach_options.uid = info[3].ToNumber().Int32Value();
+    attach_options.gid = info[4].ToNumber().Int32Value();
+#if VERSION_AT_LEAST(4, 0, 9)
+    Napi::Array groups_array = info[5].As<Napi::Array>();
+    size_t groups_array_len = groups_array.Length();
+    lxc_groups_t groups = {
+        .size = groups_array_len,
+        .list = groups_array_len > 0 ? new gid_t[groups_array_len] : nullptr};
+    if (groups.list != nullptr)
+    {
+        for (size_t i = 0; i < groups_array_len; ++i)
+        {
+            groups_array[i] = strdup(groups_array.Get(i).ToString().Utf8Value().c_str());
+        }
+    }
+
+    if (groups.size > 0)
+    {
+        attach_options.groups = groups;
+        attach_options.attach_flags &= LXC_ATTACH_SETGROUPS;
+    }
+#endif
+
+    attach_options.stdin_fd = info[6].As<Napi::Array>().Get((uint32_t)0).ToNumber().Int32Value(); // STDINFD
+    attach_options.stdout_fd = info[6].As<Napi::Array>().Get((uint32_t)1).ToNumber().Int32Value();
+    attach_options.stderr_fd = info[6].As<Napi::Array>().Get((uint32_t)2).ToNumber().Int32Value();
+
+    attach_options.initial_cwd = strdup(info[8].ToString().Utf8Value().c_str());
+
+    // Get the array of strings from the JavaScript side
+    Napi::Array js_extra_env_vars = info[7].As<Napi::Array>();
+
+    // Allocate memory for char* pointers
+    char **extra_env_vars = new char *[js_extra_env_vars.Length() + 1]; // +1 for the null terminator
+
+    // Copy the strings to the allocated memory
+    for (size_t i = 0; i < js_extra_env_vars.Length(); ++i)
+    {
+        Napi::Value element = js_extra_env_vars.Get(i);
+        if (!element.IsString())
+        {
+            Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
+            delete[] extra_env_vars; // Cleanup on error
+            return env.Null();
+        }
+
+        std::string str = element.As<Napi::String>().Utf8Value();
+        extra_env_vars[i] = new char[str.length() + 1]; // +1 for the null terminator
+        strcpy(extra_env_vars[i], str.c_str());
+    }
+
+    // Null-terminate the char* array
+    extra_env_vars[js_extra_env_vars.Length()] = nullptr;
+
+    attach_options.extra_env_vars = extra_env_vars;
+
+    // Get the array of strings from the JavaScript side
+    Napi::Array js_extra_keep_env = info[7].As<Napi::Array>();
+
+    // Allocate memory for char* pointers
+    char **extra_keep_env = new char *[js_extra_keep_env.Length() + 1]; // +1 for the null terminator
+
+    // Copy the strings to the allocated memory
+    for (size_t i = 0; i < js_extra_keep_env.Length(); ++i)
+    {
+        Napi::Value element = js_extra_keep_env.Get(i);
+        if (!element.IsString())
+        {
+            Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
+            delete[] extra_env_vars; // Cleanup on error
+            return env.Null();
+        }
+
+        std::string str = element.As<Napi::String>().Utf8Value();
+        extra_keep_env[i] = new char[str.length() + 1]; // +1 for the null terminator
+        strcpy(extra_keep_env[i], str.c_str());
+    }
+
+    // Null-terminate the char* array
+    extra_keep_env[js_extra_keep_env.Length()] = nullptr;
+
+    attach_options.extra_keep_env = extra_keep_env;
+
+    ret = _container->attach(_container, lxc_attach_run_shell, NULL, &attach_options, &pid);
+    if (ret < 0)
+    {
+        goto end;
+    }
+
+    ret = wait_for_pid_status(pid);
+    if (ret < 0)
+    {
+        goto end;
+    }
+
+    if (WIFEXITED(ret))
+    {
+        ret = WEXITSTATUS(ret);
+        goto end;
+    }
+end:
+    // free extra_env_vars
+    for (size_t i = 0; i < js_extra_env_vars.Length(); ++i)
+    {
+        delete[] extra_env_vars[i];
+    }
+    delete[] extra_env_vars;
+
+    // free extra_keep_env
+    for (size_t i = 0; i < js_extra_keep_env.Length(); ++i)
+    {
+        delete[] extra_keep_env[i];
+    }
+    delete[] extra_keep_env;
+
+    return Napi::Number::New(env, ret);
+}
+
+Napi::Value Container::Exec(const Napi::CallbackInfo &info)
+{
+    return Napi::Value();
 }
