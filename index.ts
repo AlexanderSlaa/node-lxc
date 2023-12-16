@@ -1,5 +1,17 @@
 const bindings = require("./build/Release/node-lxc.node");
 
+export enum LXC_LOGLEVEL {
+    TRACE = "TRACE",
+    DEBUG = "DEBUG",
+    INFO = "INFO",
+    NOTICE = "NOTICE",
+    WARN = "WARN",
+    ERROR = "ERROR",
+    CRIT = "CRIT",
+    ALERT = "ALERT",
+    FATAL = "FATAL",
+}
+
 export enum LXC_CREATE {
     QUIET = (1 << 0),
     MAXFLAGS = (1 << 1),

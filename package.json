@@ -1,4 +1,9 @@
 {
+  "name": "node-lxc",
+  "version": "1.0.0",
+  "description": "NodeJS LXC bindings",
+  "author": "Alexander Slaa",
+  "license": "ISC",
   "main": "lib/index.ts",
   "private": true,
   "dependencies": {
@@ -16,12 +21,8 @@
     "rebuild:dev": "node-gyp rebuild --debug",
     "build:dev": "node-gyp build --debug",
     "clean": "node-gyp clean",
-    "configure": "node-gyp configure"
+    "configure": "node-gyp configure",
+    "test/ts": "npm run install && npm run test"
   },
-  "gypfile": true,
-  "name": "hello-world",
-  "version": "1.0.0",
-  "description": "A first project.",
-  "author": "Your name goes here",
-  "license": "ISC"
+  "gypfile": true
 }
