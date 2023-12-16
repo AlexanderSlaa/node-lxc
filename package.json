@@ -12,17 +12,11 @@
   },
   "scripts": {
     "install": "cmake-js compile",
-    "tests": "ts-node tests/test_binding.ts",
-    "tests/attach": "ts-node tests/attach/index.ts",
-    "tests/list": "ts-node tests/list/index.ts",
-    "tests/list_keys": "ts-node tests/list_keys/index.ts",
-    "tests/start": "ts-node tests/start/index.ts",
-    "tests/stop": "ts-node tests/stop/index.ts",
-    "tests/create": "ts-node tests/create/index.ts",
-    "start": "node index.js",
+    "test": "ts-node tests/index.ts",
     "rebuild:dev": "node-gyp rebuild --debug",
     "build:dev": "node-gyp build --debug",
-    "clean": "node-gyp clean"
+    "clean": "node-gyp clean",
+    "configure": "node-gyp configure"
   },
   "gypfile": true,
   "name": "hello-world",

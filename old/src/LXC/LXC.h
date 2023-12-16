@@ -15,6 +15,7 @@
 #define VERSION_AT_LEAST(major, minor, micro)                      \
     ((!(major > LXC_VERSION_MAJOR ||                               \
         major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR || \
+        major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR || \
         major == LXC_VERSION_MAJOR && minor == LXC_VERSION_MINOR && micro > LXC_VERSION_MICRO)))
 
 #define ret_errno(__errno__) \

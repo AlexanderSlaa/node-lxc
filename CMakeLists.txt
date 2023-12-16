@@ -4,8 +4,10 @@ set (CMAKE_CXX_STANDARD 11)
 
 project (node-lxc)
 include_directories(${CMAKE_JS_INC})
-file(GLOB SOURCE_FILES "src/node-lxc.cc" "src/bindings/lxc.cc")
-add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC})
+file(GLOB SOURCE_FILES "src/node-lxc.cpp" "src/Container.cpp")
+add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC}
+        src/Container.h
+)
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB})
 

@@ -111,10 +111,6 @@ export enum LXC_CLONE {
     CLONE_ALLOW_RUNNING = (1 << 6),
 }
 
-export enum LXC_CREATE {
-    QUIET = (1 << 0),
-    MAXFLAGS = (1 << 1),
-}
 
 export enum LXC_ATTACH {
     /**
