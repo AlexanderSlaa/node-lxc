@@ -30,7 +30,7 @@ export const LXC = {
      * @param lxc_path
      * @constructor
      */
-    list_all_containers(lxc_path?: string) {
+    list_all_containers(lxc_path?: string): Container[] {
         return binding.list_all_containers(lxc_path).map((value) => Container.New(value));
     },
     /**
@@ -40,7 +40,7 @@ export const LXC = {
      * @param lxc_path
      * @constructor
      */
-    list_defined_containers(lxc_path?: string) {
+    list_defined_containers(lxc_path?: string): Container[] {
         return binding.list_defined_containers(lxc_path).map((value) => Container.New(value));
     },
     /**
@@ -49,7 +49,7 @@ export const LXC = {
      * @param lxc_path
      * @constructor
      */
-    list_active_containers(lxc_path?: string) {
+    list_active_containers(lxc_path?: string): Container[] {
         return binding.list_active_containers(lxc_path).map((value) => Container.New(value));
     },
 

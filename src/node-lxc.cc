@@ -379,47 +379,39 @@ Value lxc_create(const CallbackInfo &info)
     return Boolean::New(env, result);
 }
 
-Value lxc_start(const CallbackInfo &info)
-{
-    if (!info[0].IsExternal())
-    {
+Value lxc_start(const CallbackInfo &info) {
+    if (!info[0].IsExternal() && !info[1].IsNumber()) {
         TypeError::New(info.Env(), "Invalid parameter").ThrowAsJavaScriptException();
         return info.Env().Null();
     }
     // Get the container handle from JavaScript
 
-    // Convert JavaScript array to char* const argv[]
-    Array argvArray = info[2].As<Array>();
-    size_t argc = argvArray.Length();
     char **argv = nullptr;
-    if (argc > 0)
-    {
+    size_t argc;
+    if (info[2].IsArray()) { // Convert JavaScript array to char* const argv[]
+        Array argvArray = info[2].As<Array>();
+        argc = argvArray.Length();
         argv = new char *[argc + 1];
-        for (size_t i = 0; i < argc; ++i)
-        {
-            // Allocate memory and copy the content of each argument
+        for (size_t i = 0; i < argc; ++i) {
             argv[i] = strdup(argvArray.Get(i).ToString().Utf8Value().c_str());
         }
         argv[argc] = nullptr;
     }
+
     // Call the C++ implementation
     External<LXC::Container> ref = info[0].As<External<LXC::Container>>();
     bool result = ref.Data()->start(info[1].ToNumber().Int32Value(), argv);
 
-    if (!result)
-    {
-        printf("error: %s", ref.Data()->error_str());
+    if (argv != nullptr) {
+        // Free allocated memory
+        for (size_t i = 0; i < argc; ++i) {
+            free(const_cast<char *>(argv[i]));
+        }
+        delete[] argv;
     }
-
-    // Free allocated memory
-    for (size_t i = 0; i < argc; ++i)
-    {
-        free(argv[i]);
-    }
-    // Free the array itself
-    delete[] argv;
     return Boolean::New(info.Env(), result);
 }
+
 
 Value lxc_stop(const CallbackInfo &info)
 {

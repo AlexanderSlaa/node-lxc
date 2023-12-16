@@ -276,7 +276,7 @@ export class Container {
         return binding.lxc_attach(this._$ref, opt.clear_env, opt.namespaces, opt.personality, opt.uid, opt.gid, opt.groups, opt.stdio, opt.cwd, opt.extra_env_vars, opt.clear_env ? opt.extra_keep_env : [], opt.attach_flags);
     }
 
-    static New(name: string, config_path?: string) {
+    static New(name: string, config_path?: string): Container {
         const container = new Container(name);
         container._$ref = binding.lxc_container_new(name, config_path)
         return container;
