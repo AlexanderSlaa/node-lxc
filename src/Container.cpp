@@ -20,6 +20,7 @@ Napi::Object Container::Init(Napi::Env env, Napi::Object exports)
                                           InstanceMethod("clearConfig", &Container::ClearConfig),
                                           InstanceMethod("attach", &Container::Attach),
                                           InstanceMethod("exec", &Container::Exec),
+                                          InstanceMethod("daemonize", &Container::Daemonize),
                                       });
 
     auto constructor = Napi::Persistent(func);
@@ -63,43 +64,39 @@ Container::~Container()
 Napi::Value Container::Start(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
-    // if (info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray())
-    // {
-    //     Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
-    //     return env.Null();
-    // }
+    if (info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray())
+    {
+        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
 
-    // printf("starting\n");
+    // Get the array of strings from the JavaScript side
+    Napi::Array jsArray = info[1].As<Napi::Array>();
 
-    // // Get the array of strings from the JavaScript side
-    // Napi::Array jsArray = info[1].As<Napi::Array>();
+    // Allocate memory for char* pointers
+    char **argv = new char *[jsArray.Length() + 1]; // +1 for the null terminator
 
-    // // Allocate memory for char* pointers
-    // char **argv = new char *[jsArray.Length() + 1]; // +1 for the null terminator
+    // Copy the strings to the allocated memory
+    for (size_t i = 0; i < jsArray.Length(); ++i)
+    {
+        Napi::Value element = jsArray.Get(i);
+        if (!element.IsString())
+        {
+            Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
+            delete[] argv; // Cleanup on error
+            return env.Null();
+        }
+        std::string str = element.As<Napi::String>().Utf8Value();
+        argv[i] = strdup(str.c_str());
+    }
 
-    // // Copy the strings to the allocated memory
-    // for (size_t i = 0; i < jsArray.Length(); ++i)
-    // {
-    //     Napi::Value element = jsArray.Get(i);
-    //     if (!element.IsString())
-    //     {
-    //         Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
-    //         delete[] argv; // Cleanup on error
-    //         return env.Null();
-    //     }
-    //     std::string str = element.As<Napi::String>().Utf8Value();
-    //     argv[i] = strdup(str.c_str());
-    // }
+    // Null-terminate the char* array
+    argv[jsArray.Length()] = NULL;
 
-    // // Null-terminate the char* array
-    // argv[jsArray.Length()] = nullptr;
-    struct lxc_log log;
-    int err = EXIT_FAILURE;
-    char *rcfile = NULL;
-    char *const default_args[] = {
-        "/sbin/init",
-        NULL,
-    };
+    // char *const default_args[] = {
+    //     ,
+    //     NULL,
+    // };
 
     if (!_container->may_control(_container))
     {
@@ -109,36 +106,24 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info)
 
     if (_container->is_running(_container))
     {
-        Napi::Error::New(env, "Container is already running").ThrowAsJavaScriptException();
-        return env.Null();
+        return Napi::Boolean::New(env, true);
     }
 
-    err = _container->start(_container, 0, default_args)? EXIT_SUCCESS : EXIT_FAILURE;
-
-    if (err)
+    if (!_container->start(_container, info[0].ToNumber().Int32Value(), argv))
     {
         printf("The container failed to start");
-        err = _container->error_num;
-        Napi::Error::New(env, strerror(err)).ThrowAsJavaScriptException();
+        Napi::Error::New(env, strerror(_container->error_num)).ThrowAsJavaScriptException();
         return env.Null();
     }
 
-    // if (!res)
-    // {
-    //     printf("Failed to start\n");
-    //     printf("error(%s)", strerror(errno));
-    //     // Napi::Error::New(env, strerror(errno)).ThrowAsJavaScriptException();
-    //     // return env.Null();
-    // }
+    // Cleanup: Free allocated memory
+    for (size_t i = 0; i < jsArray.Length(); ++i)
+    {
+        delete[] argv[i];
+    }
+    delete[] argv;
 
-    // // Cleanup: Free allocated memory
-    // for (size_t i = 0; i < jsArray.Length(); ++i)
-    // {
-    //     delete[] argv[i];
-    // }
-    // delete[] argv;
-
-    return Napi::Boolean::New(env, err);
+    return Napi::Boolean::New(env, true);
 }
 
 Napi::Value Container::Stop(const Napi::CallbackInfo &info)
@@ -417,10 +402,10 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     attach_options.stdout_fd = info[6].As<Napi::Array>().Get((uint32_t)1).ToNumber().Int32Value();
     attach_options.stderr_fd = info[6].As<Napi::Array>().Get((uint32_t)2).ToNumber().Int32Value();
 
-    attach_options.initial_cwd = strdup(info[8].ToString().Utf8Value().c_str());
+    attach_options.initial_cwd = strdup(info[7].ToString().Utf8Value().c_str());
 
     // Get the array of strings from the JavaScript side
-    Napi::Array js_extra_env_vars = info[7].As<Napi::Array>();
+    Napi::Array js_extra_env_vars = info[8].As<Napi::Array>();
 
     // Allocate memory for char* pointers
     char **extra_env_vars = new char *[js_extra_env_vars.Length() + 1]; // +1 for the null terminator
@@ -447,7 +432,7 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     attach_options.extra_env_vars = extra_env_vars;
 
     // Get the array of strings from the JavaScript side
-    Napi::Array js_extra_keep_env = info[7].As<Napi::Array>();
+    Napi::Array js_extra_keep_env = info[9].As<Napi::Array>();
 
     // Allocate memory for char* pointers
     char **extra_keep_env = new char *[js_extra_keep_env.Length() + 1]; // +1 for the null terminator
@@ -511,4 +496,15 @@ end:
 Napi::Value Container::Exec(const Napi::CallbackInfo &info)
 {
     return Napi::Value();
+}
+
+Napi::Value Container::Daemonize(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() <= 0 || !info[0].IsBoolean())
+    {
+        Napi::TypeError::New(env, "Invalid parameter").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    return Napi::Boolean::New(env, _container->want_daemonize(_container, info[0].ToBoolean()));
 }

@@ -1,19 +1,31 @@
-import { Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL } from "../index";
+import { randomUUID } from "crypto";
+import {Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL} from "../index";
+import { mkdirSync } from "fs";
+import { resolve } from "path";
 
 console.log(`LXC version(${LXC.version})`);
 
-const c = new Container("test");
+const name = randomUUID();
 
-c.setConfigItem("lxc.log.file", "./containers/test/.log");
+const c = new Container(name);
+
+c.setConfigItem("lxc.log.file", `./containers/${name}/.log`);
 c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE.toString());
 
 console.log(c.name);
 
-// console.log("created", c.create("download", "dir", {}, 1, ["--dist", "ubuntu", "--release", "jammy", "--arch", "amd64"]));
+const path = resolve(`./containers/${name}/rootfs`);
+
+mkdirSync(path);
+
+console.log("created", c.create("download", "dir", {dir: path}, 1, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
 console.log(process.pid);
 
-// console.log("started", c.start(0, ["/sbin/init"]));
-console.log("started", c.start());
+c.daemonize(true);
+
+console.log("started", c.start(0, ["/sbin/init"]));
+// console.log("started", c.start());
+
 
 
 const attach_flags = LXC_ATTACH.DEFAULT;

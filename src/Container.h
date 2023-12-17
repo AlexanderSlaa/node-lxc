@@ -80,6 +80,7 @@ public:
     Napi::Value GetName(const Napi::CallbackInfo &info);
     Napi::Value GetState(const Napi::CallbackInfo &info);
 
+
 private:
     Napi::Value Start(const Napi::CallbackInfo &info);
 
@@ -100,6 +101,8 @@ private:
 
     // Attach with no wait lxc_attach_run_command
     Napi::Value Exec(const Napi::CallbackInfo &info);
+
+    Napi::Value Daemonize(const Napi::CallbackInfo &info);
 
 
     struct lxc_container *_container;

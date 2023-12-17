@@ -216,8 +216,8 @@ export type Container = {
 
     new(name: string): Container,
 
-    // start(useinit: number, argv: string[]): boolean;
-    start():boolean;
+    start(useinit: number, argv: string[]): boolean;
+    // start():boolean;
     stop(): boolean;
     create(template: string, bdevtype: string, bdev_specs: Partial<bdev_specs>, flags: number, argv: string[]): boolean;
     getConfigItem(key: string): string;
@@ -227,6 +227,8 @@ export type Container = {
 
     attach(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;
     // exec(clear_env: string, namespace: number, personality: number, uid: null, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;
+
+    daemonize(v: boolean): boolean;
 }
 //endregion
 
