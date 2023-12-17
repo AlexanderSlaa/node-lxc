@@ -4,14 +4,17 @@ console.log(`LXC version(${LXC.version})`);
 
 const c = new Container("test");
 
-c.setConfigItem("lxc.log.file", "./test.log");
+c.setConfigItem("lxc.log.file", "./containers/test/.log");
 c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE.toString());
 
 console.log(c.name);
 
-console.log("created", c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "jammy", "--arch", "amd64"]));
+// console.log("created", c.create("download", "dir", {}, 1, ["--dist", "ubuntu", "--release", "jammy", "--arch", "amd64"]));
+console.log(process.pid);
 
-console.log("started", c.start(0, []));
+// console.log("started", c.start(0, ["/sbin/init"]));
+console.log("started", c.start());
+
 
 const attach_flags = LXC_ATTACH.DEFAULT;
 

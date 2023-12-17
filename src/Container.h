@@ -75,6 +75,8 @@ public:
 
     explicit Container(const Napi::CallbackInfo &info);
 
+    ~Container();
+
     Napi::Value GetName(const Napi::CallbackInfo &info);
     Napi::Value GetState(const Napi::CallbackInfo &info);
 

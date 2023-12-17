@@ -1,4 +1,11 @@
-const bindings = require("./build/Release/node-lxc.node");
+let bindings
+if (process.env["MODE"] === "DEV") {
+    console.warn("!!!!RUNNING IN DEV MODE!!!!");
+    bindings = require("./build/Debug/node-lxc.node");
+}else{
+    bindings = require("./build/Release/node-lxc.node");
+
+}
 
 //region consts
 export enum LXC_LOGLEVEL {
@@ -209,7 +216,8 @@ export type Container = {
 
     new(name: string): Container,
 
-    start(useinit: number, argv: string[]): boolean;
+    // start(useinit: number, argv: string[]): boolean;
+    start():boolean;
     stop(): boolean;
     create(template: string, bdevtype: string, bdev_specs: Partial<bdev_specs>, flags: number, argv: string[]): boolean;
     getConfigItem(key: string): string;

@@ -47,52 +47,98 @@ Container::Container(const Napi::CallbackInfo &info) : Napi::ObjectWrap<Containe
         return;
     }
     _container = lxc_container_new(info[0].ToString().Utf8Value().c_str(),
-                                   info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : nullptr);
+                                   info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.lxcpath"));
+    _container->load_config(_container, info[2].IsString() ? info[2].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.default_config"));
+}
+
+Container::~Container()
+{
+    if (_container)
+    {
+        // Clean up the container if needed
+        lxc_container_put(_container);
+    }
 }
 
 Napi::Value Container::Start(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray())
+    // if (info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray())
+    // {
+    //     Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
+    //     return env.Null();
+    // }
+
+    // printf("starting\n");
+
+    // // Get the array of strings from the JavaScript side
+    // Napi::Array jsArray = info[1].As<Napi::Array>();
+
+    // // Allocate memory for char* pointers
+    // char **argv = new char *[jsArray.Length() + 1]; // +1 for the null terminator
+
+    // // Copy the strings to the allocated memory
+    // for (size_t i = 0; i < jsArray.Length(); ++i)
+    // {
+    //     Napi::Value element = jsArray.Get(i);
+    //     if (!element.IsString())
+    //     {
+    //         Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
+    //         delete[] argv; // Cleanup on error
+    //         return env.Null();
+    //     }
+    //     std::string str = element.As<Napi::String>().Utf8Value();
+    //     argv[i] = strdup(str.c_str());
+    // }
+
+    // // Null-terminate the char* array
+    // argv[jsArray.Length()] = nullptr;
+    struct lxc_log log;
+    int err = EXIT_FAILURE;
+    char *rcfile = NULL;
+    char *const default_args[] = {
+        "/sbin/init",
+        NULL,
+    };
+
+    if (!_container->may_control(_container))
     {
-        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
+        Napi::Error::New(env, "Insufficent privileges to control container").ThrowAsJavaScriptException();
         return env.Null();
     }
 
-    // Get the array of strings from the JavaScript side
-    Napi::Array jsArray = info[1].As<Napi::Array>();
-
-    // Allocate memory for char* pointers
-    char **argv = new char *[jsArray.Length() + 1]; // +1 for the null terminator
-
-    // Copy the strings to the allocated memory
-    for (size_t i = 0; i < jsArray.Length(); ++i)
+    if (_container->is_running(_container))
     {
-        Napi::Value element = jsArray.Get(i);
-        if (!element.IsString())
-        {
-            Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
-            delete[] argv; // Cleanup on error
-            return env.Null();
-        }
-        std::string str = element.As<Napi::String>().Utf8Value();
-        argv[i] = new char[str.length() + 1]; // +1 for the null terminator
-        strcpy(argv[i], str.c_str());
+        Napi::Error::New(env, "Container is already running").ThrowAsJavaScriptException();
+        return env.Null();
     }
 
-    // Null-terminate the char* array
-    argv[jsArray.Length()] = nullptr;
+    err = _container->start(_container, 0, default_args)? EXIT_SUCCESS : EXIT_FAILURE;
 
-    auto res = _container->start(_container, info[0].ToNumber().Int32Value(), argv);
-
-    // Cleanup: Free allocated memory
-    for (size_t i = 0; i < jsArray.Length(); ++i)
+    if (err)
     {
-        delete[] argv[i];
+        printf("The container failed to start");
+        err = _container->error_num;
+        Napi::Error::New(env, strerror(err)).ThrowAsJavaScriptException();
+        return env.Null();
     }
-    delete[] argv;
 
-    return Napi::Boolean::New(env, res);
+    // if (!res)
+    // {
+    //     printf("Failed to start\n");
+    //     printf("error(%s)", strerror(errno));
+    //     // Napi::Error::New(env, strerror(errno)).ThrowAsJavaScriptException();
+    //     // return env.Null();
+    // }
+
+    // // Cleanup: Free allocated memory
+    // for (size_t i = 0; i < jsArray.Length(); ++i)
+    // {
+    //     delete[] argv[i];
+    // }
+    // delete[] argv;
+
+    return Napi::Boolean::New(env, err);
 }
 
 Napi::Value Container::Stop(const Napi::CallbackInfo &info)
