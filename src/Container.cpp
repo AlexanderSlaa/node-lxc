@@ -49,7 +49,10 @@ Container::Container(const Napi::CallbackInfo &info) : Napi::ObjectWrap<Containe
     }
     _container = lxc_container_new(info[0].ToString().Utf8Value().c_str(),
                                    info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.lxcpath"));
-    _container->load_config(_container, info[2].IsString() ? info[2].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.default_config"));
+    if (info[2].IsString() && strcmp(info[2].ToString().Utf8Value().c_str(), "none") != 0)
+    {
+        _container->load_config(_container, info[2].IsString() ? info[2].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.default_config"));
+    }
 }
 
 Container::~Container()

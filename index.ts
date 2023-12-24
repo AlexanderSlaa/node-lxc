@@ -2,7 +2,7 @@ let bindings
 if (process.env["MODE"] === "DEV") {
     console.warn("!!!!RUNNING IN DEV MODE!!!!");
     bindings = require("./build/Debug/node-lxc.node");
-}else{
+} else {
     bindings = require("./build/Release/node-lxc.node");
 
 }
@@ -214,7 +214,7 @@ export type Container = {
     get name(): string;
     get state(): "STOPPED" | "STARTING" | "RUNNING" | "ABORTING" | "STOPPING";
 
-    new(name: string): Container,
+    new(name: string, configPath?: string): Container,
 
     start(useinit: number, argv: string[]): boolean;
     // start():boolean;
