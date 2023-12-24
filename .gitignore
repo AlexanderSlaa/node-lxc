@@ -7,3 +7,5 @@ build
 *.log
 old
 containers/*
+*.js
+*.js.map
