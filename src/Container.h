@@ -21,7 +21,6 @@
         -(__errno__);        \
     })
 
-
 // region stuct defs
 #if !VERSION_AT_LEAST(4, 0, 9) && !defined(LXC_ATTACH_SETGROUPS)
 typedef struct lxc_groups_t
@@ -68,8 +67,8 @@ struct lxc_console_log
 };
 #endif
 
-
-class Container : public Napi::ObjectWrap<Container> {
+class Container : public Napi::ObjectWrap<Container>
+{
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
@@ -79,7 +78,7 @@ public:
 
     Napi::Value GetName(const Napi::CallbackInfo &info);
     Napi::Value GetState(const Napi::CallbackInfo &info);
-
+    Napi::Value GetDefined(const Napi::CallbackInfo &info);
 
 private:
     Napi::Value Start(const Napi::CallbackInfo &info);
@@ -104,9 +103,7 @@ private:
 
     Napi::Value Daemonize(const Napi::CallbackInfo &info);
 
-
     struct lxc_container *_container;
 };
 
-
-#endif //NODE_LXC_CONTAINER_H
+#endif // NODE_LXC_CONTAINER_H

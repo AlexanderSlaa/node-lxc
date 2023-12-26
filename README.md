@@ -70,24 +70,12 @@ usage : CONFIG=/path/to/config /usr/bin/lxc-checkconfig
 ```
 
 for lxc from source
-```bash
-  sudo apt-get install -y libseccomp-dev
-  apt-get install -y libseccomp-dev
-  apt install openssl
-  apt install openssl-dev
-  sudo apt-get install -y libselinux-dev
-  apt-get install -y libselinux-dev
-  apt-get install -y libapparmor
-  apt-get install -y libapparmor-dev
-  apt-get install -y openssl-devel
-  apt-get install -y libcap-dev
-  apt install -y lib64pam-devel
-  apt install -y libpam-devl
-  apt install -y pam-devel
-  apt install libsystemd
-  apt install libsystemd-dev
-  apt-get install libssl-dev
-  meson setup -Dprefix=/usr build
-  pkg-config --cflags --libs libsystemd
-  apt install libsystemd-dev
+```shell
+  apt-get update -y && apt-get upgrade -y
+  apt-get install -y libseccomp-dev libssl-dev libselinux-dev libselinux-dev libapparmor-dev libcap-dev libsystemd-dev
+```
+
+```shell
+meson setup -Dprefix=/usr build
+meson compile -C build
 ```

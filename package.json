@@ -22,6 +22,7 @@
     "build:dev": "node-gyp build --debug",
     "build": "node-gyp build",
     "clean": "node-gyp clean && npm run configure && npm run build",
+    "wipe": "node-gyp clean && npm run configure",
     "configure": "node-gyp configure",
     "test/ts": "npm run build && npm run test"
   },

@@ -11,12 +11,14 @@ Napi::Object Container::Init(Napi::Env env, Napi::Object exports)
         DefineClass(env, "Container", {
                                           InstanceAccessor("name", &Container::GetName, nullptr),
                                           InstanceAccessor("state", &Container::GetState, nullptr),
+                                          InstanceAccessor("defined", &Container::GetDefined, nullptr),
                                           InstanceMethod("start", &Container::Start),
                                           InstanceMethod("stop", &Container::Stop),
                                           InstanceMethod("create", &Container::Create),
                                           InstanceMethod("getConfigItem", &Container::GetConfigItem),
                                           InstanceMethod("setConfigItem", &Container::SetConfigItem),
                                           InstanceMethod("clearConfigItem", &Container::ClearConfigItem),
+                                          InstanceMethod("clearConfig", &Container::ClearConfig),
                                           InstanceMethod("clearConfig", &Container::ClearConfig),
                                           InstanceMethod("attach", &Container::Attach),
                                           InstanceMethod("exec", &Container::Exec),
@@ -37,6 +39,11 @@ Napi::Value Container::GetName(const Napi::CallbackInfo &info)
 Napi::Value Container::GetState(const Napi::CallbackInfo &info)
 {
     return Napi::String::New(info.Env(), _container->state(_container));
+}
+
+Napi::Value Container::GetDefined(const Napi::CallbackInfo &info)
+{
+    return Napi::Boolean::New(info.Env(), _container->is_defined(_container));
 }
 
 Container::Container(const Napi::CallbackInfo &info) : Napi::ObjectWrap<Container>(info)
@@ -67,10 +74,22 @@ Container::~Container()
 Napi::Value Container::Start(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
+    Napi::Value ret = env.Null();
     if (info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray())
     {
         Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
         return env.Null();
+    }
+
+    if (!_container->may_control(_container))
+    {
+        Napi::Error::New(env, "Insufficent privileges to control container").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    if (_container->is_running(_container))
+    {
+        return Napi::Boolean::New(env, true);
     }
 
     // Get the array of strings from the JavaScript side
@@ -96,27 +115,9 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info)
     // Null-terminate the char* array
     argv[jsArray.Length()] = NULL;
 
-    // char *const default_args[] = {
-    //     ,
-    //     NULL,
-    // };
-
-    if (!_container->may_control(_container))
-    {
-        Napi::Error::New(env, "Insufficent privileges to control container").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    if (_container->is_running(_container))
-    {
-        return Napi::Boolean::New(env, true);
-    }
-
     if (!_container->start(_container, info[0].ToNumber().Int32Value(), argv))
     {
-        printf("The container failed to start");
         Napi::Error::New(env, strerror(_container->error_num)).ThrowAsJavaScriptException();
-        return env.Null();
     }
 
     // Cleanup: Free allocated memory
@@ -126,7 +127,8 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info)
     }
     delete[] argv;
 
-    return Napi::Boolean::New(env, true);
+    ret = Napi::Boolean::New(env, true);
+    return ret;
 }
 
 Napi::Value Container::Stop(const Napi::CallbackInfo &info)

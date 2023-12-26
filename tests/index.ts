@@ -1,9 +1,8 @@
-import { randomUUID } from "crypto";
 import { Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL } from "../index";
 
 console.log(`LXC version(${LXC.version})`);
 
-const name = "test-ct"
+const name = "node-ct"
 
 const c = new Container(name);
 
@@ -18,8 +17,10 @@ console.log(c.name);
 
 c.daemonize(true);
 
-console.log("created", c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
-console.log(process.pid);
+if (!c.defined) {
+    console.log("created", c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
+    console.log(process.pid);
+}
 
 
 console.log("started", c.start(0, ["/sbin/init"]));

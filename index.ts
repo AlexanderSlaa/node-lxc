@@ -213,6 +213,7 @@ export type bdev_specs = {
 export type Container = {
     get name(): string;
     get state(): "STOPPED" | "STARTING" | "RUNNING" | "ABORTING" | "STOPPING";
+    get defined(): boolean;
 
     new(name: string, configPath?: string): Container,
 
