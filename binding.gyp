@@ -5,7 +5,7 @@
       'sources': [ 'src/node-lxc.cpp', 'src/Container.cpp' ],
       'include_dirs': ["<!@(node -p \"require('node-addon-api').include\")","/usr/include/lxc"],
       'dependencies': ["<!(node -p \"require('node-addon-api').gyp\")"],
-      'libraries': ["/usr/local/lib/x86_64-linux-gnu/liblxc.so.1"],
+      'libraries': ["/usr/lib/x86_64-linux-gnu/liblxc.so.1"],
       'cflags!': [ '-fno-exceptions' ],
       'cflags_cc!': [ '-fno-exceptions' ],
       'xcode_settings': {
