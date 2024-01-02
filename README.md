@@ -72,7 +72,7 @@ usage : CONFIG=/path/to/config /usr/bin/lxc-checkconfig
 for lxc from source
 ```shell
   apt-get update -y && apt-get upgrade -y
-  apt-get install -y libseccomp-dev libssl-dev libselinux-dev libselinux-dev libapparmor-dev libcap-dev libsystemd-dev
+  apt-get install -y pkg-config libseccomp-dev libssl-dev libselinux-dev libselinux-dev libapparmor-dev libcap-dev libsystemd-dev
 ```
 
 ```shell

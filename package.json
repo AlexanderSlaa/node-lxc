@@ -18,7 +18,7 @@
   "scripts": {
     "install": "cmake-js compile",
     "test": "ts-node tests/index.ts",
-    "rebuild:dev": "node-gyp rebuild --debug",
+    "rebuild:dev": "npx tsc && node-gyp rebuild --debug",
     "build:dev": "node-gyp build --debug",
     "build": "node-gyp build",
     "clean": "node-gyp clean && npm run configure && npm run build",
