@@ -8,13 +8,6 @@
 
 Napi::String GetVersion(const Napi::CallbackInfo &info) {
     return Napi::String::New(info.Env(), lxc_get_version());
-    // auto versionObject = Napi::Object::New(env);
-    // versionObject.Set("devel", Napi::Number::New(env, LXC_DEVEL));
-    // versionObject.Set("major", Napi::Number::New(env, LXC_VERSION_MAJOR));
-    // versionObject.Set("minor", Napi::Number::New(env, LXC_VERSION_MINOR));
-    // versionObject.Set("micro", Napi::Number::New(env, LXC_VERSION_MICRO));
-    // versionObject.Set("abi", Napi::String::New(env, LXC_VERSION_ABI));
-    // return versionObject;
 }
 
 Napi::Value GetGlobalConfigItem(const Napi::CallbackInfo &info) {

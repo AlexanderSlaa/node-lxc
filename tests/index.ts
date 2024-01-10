@@ -21,10 +21,6 @@ c.setConfigItem("lxc.mount.auto", "cgroup:rw:force");
 
 console.log(c.name);
 
-// const path = resolve(`./containers/${name}/rootfs`);
-
-// mkdirSync(path);
-
 c.daemonize(true);
 
 if (!c.defined) {
