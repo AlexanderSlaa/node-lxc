@@ -9,11 +9,11 @@ const c = new Container(name);
 c.setConfigItem("lxc.log.file", `./${name}/.log`);
 c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE.toString());
 
+c.setConfigItem("lxc.idmap", "u 0 100000 65536")
+c.setConfigItem("lxc.idmap", "g 0 100000 65536")
+c.setConfigItem("lxc.monitor.unshare", "1")
+
 console.log(c.name);
-
-// const path = resolve(`./containers/${name}/rootfs`);
-
-// mkdirSync(path);
 
 c.daemonize(true);
 
