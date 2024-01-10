@@ -10,15 +10,6 @@ const c = new Container(name);
 c.setConfigItem("lxc.log.file", `./${name}/.log`);
 c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE.toString());
 
-
-c.setConfigItem("lxc.cgroup.devices.allow", "");
-c.setConfigItem("lxc.cgroup.devices.deny", "");
-
-c.setConfigItem("lxc.idmap", "u 0 100000 65536");
-c.setConfigItem("lxc.idmap", "g 0 100000 65536");
-
-c.setConfigItem("lxc.mount.auto", "cgroup:rw:force");
-
 console.log(c.name);
 
 c.daemonize(true);
