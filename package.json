@@ -1,30 +1,15 @@
 {
   "name": "node-lxc",
   "version": "1.0.0",
-  "description": "NodeJS LXC bindings",
+  "description": "NodeJS LXC cli bindings",
   "author": "Alexander Slaa",
   "license": "ISC",
   "main": "lib/index.ts",
-  "private": true,
-  "dependencies": {
-    "node-addon-api": "^1.1.0"
-  },
   "devDependencies": {
     "@types/node": "^20.9.2",
-    "cmake-js": "^7.1.1",
-    "node-gyp": "^10.0.1",
     "ts-node": "^10.9.1"
   },
   "scripts": {
-    "install": "cmake-js compile",
-    "test": "ts-node tests/index.ts",
-    "rebuild:dev": "npx tsc && node-gyp rebuild --debug",
-    "build:dev": "node-gyp build --debug",
-    "build": "node-gyp build",
-    "clean": "node-gyp clean && npm run configure && npm run build",
-    "wipe": "node-gyp clean && npm run configure",
-    "configure": "node-gyp configure",
-    "test/ts": "npm run build && npm run test"
-  },
-  "gypfile": true
+    "test": "ts-node tests/index.ts"
+  }
 }
