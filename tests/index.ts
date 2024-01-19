@@ -1,5 +1,5 @@
-import { Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL } from "../index";
-import * as os from "os";
+import {Container, LXC} from "../index";
+import * as Path from "path";
 
 console.log(`LXC version(${LXC.version})`);
 
@@ -7,27 +7,43 @@ const name = "node-ct"
 
 const c = new Container(name);
 
-c.setConfigItem("lxc.log.file", `./${name}/.log`);
-c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE.toString());
 
-console.log(c.name);
-
-c.daemonize(true);
-
-if (!c.defined) {
-    console.log("created", c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
-    console.log(process.pid);
+async function main() {
+    if (c.defined) {
+        c.destroy();
+    }
+    await c.create({
+        bdev: "dir",
+        dir: Path.resolve(`./node-ct/rootfs`),
+        template: "download",
+        '--': ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]
+    }).then((c) => c.start())
+    console.log(c.state);
+    c.attach({})
 }
 
+main().catch(console.error);
 
-console.log("started", c.start(0, ["/sbin/init", "systemd.unified_cgroup_hierarchy=1"]));
-// console.log("started", c.start());
-
-
-
-const attach_flags = LXC_ATTACH.DEFAULT;
-
-c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags);
-
-
-
+// createProcess.stdout.on("data", (buffer) => {
+//     console.log(buffer.toString());
+// })
+//
+// createProcess.stderr.on("data", (buffer) => {
+//     console.error(buffer.toString());
+// })
+//
+// createProcess.on("exit", () => {
+//     console.log(c.state)
+//
+//     const ct = c.start();
+//     ct.stdout.on("data", (buffer) => {
+//         console.log(buffer.toString());
+//     })
+//
+//     ct.on("exit", (code) => {
+//         if(code == 1){
+//             console.log("container started");
+//         }
+//     })
+// })
+//

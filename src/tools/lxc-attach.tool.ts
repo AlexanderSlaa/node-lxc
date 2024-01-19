@@ -1,5 +1,5 @@
 import {CommonOptions, OptionMapper} from "./index";
-import {execFile, ExecOptions} from "child_process";
+import {execFile, execFileSync, ExecOptions, ExecSyncOptions} from "child_process";
 
 export type AttachOptions = {
     /**
@@ -74,7 +74,6 @@ export type AttachOptions = {
 } & CommonOptions
 
 export const AttachOptionMapper = {
-    $: (key: string, value: any) => [`--${key}`, value.toString()],
     "set-var": (key: string, value: Record<Uppercase<string>, string>) => Object.entries(value).map(([key, value]) => `${key}=${value}`).map((_var) => [`--${key}`, _var]).flat()
 }
 

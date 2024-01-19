@@ -1,102 +1,10 @@
-let bindings
-if (process.env["MODE"] === "DEV") {
-    console.warn("!!!!RUNNING IN DEV MODE!!!!");
-    bindings = require("./build/Debug/node-lxc.node");
-} else {
-    bindings = require("./build/Release/node-lxc.node");
+import {execFileSync} from "child_process";
+import {configSync} from "./src/tools/lxc-config.tool";
+import {lsSync} from "./src/tools/lxc-ls.tool";
 
-}
+export * from "./src/types/Container";
 
-//region consts
-export enum LXC_LOGLEVEL {
-    TRACE = "TRACE",
-    DEBUG = "DEBUG",
-    INFO = "INFO",
-    NOTICE = "NOTICE",
-    WARN = "WARN",
-    ERROR = "ERROR",
-    CRIT = "CRIT",
-    ALERT = "ALERT",
-    FATAL = "FATAL",
-}
-
-export enum LXC_CREATE {
-    QUIET = (1 << 0),
-    MAXFLAGS = (1 << 1),
-}
-
-export enum LXC_ATTACH {
-    /**
-     * Move to cgroup
-     * @default on
-     */
-    MOVE_TO_CGROUP = 0x00000001,
-    /**
-     * Drop capabilities
-     * @default on
-     */
-    DROP_CAPABILITIES = 0x00000002,
-
-    /**
-     * Set personality
-     * @default on
-     */
-    SET_PERSONALITY = 0x00000004,
-
-    /**
-     * Execute under a Linux Security Module
-     * @default on
-     */
-    LSM_EXEC = 0x00000008,
-
-    /**
-     * Remount /proc filesystem
-     * @default off
-     */
-    REMOUNT_PROC_SYS = 0x00010000,
-
-    /**
-     * TODO: currently unused
-     * @default off
-     */
-    LSM_NOW = 0x00020000,
-
-    /**
-     * PR_SET_NO_NEW_PRIVS
-     * Set PR_SET_NO_NEW_PRIVS to block execve() gainable privileges.
-     *
-     * @default off
-     *
-     */
-    NO_NEW_PRIVS = 0x00040000,
-
-    /**
-     * Allocate new terminal for attached process.
-     * @default off
-     */
-    TERMINAL = 0x00080000,
-
-    /**
-     * Set custom LSM label specified in @lsm_label.
-     * @default off
-     */
-    LSM_LABEL = 0x00100000,
-
-    /**
-     * Set additional group ids specified in @groups.
-     * @default off
-     */
-    SETGROUPS = 0x00200000,
-
-    /**
-     * We have 16 bits for things that are on by default and 16 bits that
-     * are off by default, that should be sufficient to keep binary
-     * compatibility for a while
-     *
-     * Mask of flags to apply by default
-     */
-    DEFAULT = 0x0000FFFF
-}
+export const MODE = "CLI";
 
 
 export const DEFAULT_ATTACH: ContainerAttachOptions = {
@@ -210,45 +118,24 @@ export type bdev_specs = {
     }
 }
 
-export type Container = {
-    get name(): string;
-    get state(): "STOPPED" | "STARTING" | "RUNNING" | "ABORTING" | "STOPPING";
-    get defined(): boolean;
 
-    new(name: string, configPath?: string): Container,
-
-    start(useinit: number, argv: string[]): boolean;
-    // start():boolean;
-    stop(): boolean;
-    create(template: string, bdevtype: string, bdev_specs: Partial<bdev_specs>, flags: number, argv: string[]): boolean;
-    getConfigItem(key: string): string;
-    setConfigItem(key: string, value: string): boolean;
-    clearConfigItem(key: string): boolean;
-    clearConfig(): void;
-
-    attach(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;
-    // exec(clear_env: string, namespace: number, personality: number, uid: null, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;
-
-    daemonize(v: boolean): boolean;
-}
 //endregion
 
 //region type bindings
-export const Container: Container = <Container>bindings.Container;
 export const LXC = {
     get version(): string {
-        return bindings.GetVersion();
+        return execFileSync("lxc-ls",["--version"]).toString().trim();
     },
     getGlobalConfigItem(key: string): string {
-        return bindings.getGlobalConfigItem(key);
+        return configSync({item: key}, {});
     },
     get listAllContainerNames(): string[] {
-        return bindings.ListAllContainers();
+        return lsSync({}, {});
     },
     get listAllDefinedContainerNames(): string[] {
-        return bindings.ListAllDefinedContainers();
+        return lsSync({defined: true}, {});
     },
     get listAllActiveContainerNames(): string[] {
-        return bindings.ListAllActiveContainers();
+        return lsSync({active: true}, {});
     }
 }

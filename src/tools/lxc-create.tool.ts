@@ -1,4 +1,5 @@
-import {CommonOptions} from "./index";
+import {CommonOptions, OptionMapper} from "./index";
+import {exec, execFile, ExecOptions} from "child_process";
 
 export type BDEV_LVM = {
     /**
@@ -64,6 +65,14 @@ export type BDEV_LVM_LOOP = {
     fssize: `${number}${'b' | 'B' | 'k' | 'K' | 'm' | 'M' | 'g' | 'G' | 't' | 'T'}`
 }
 
+export type BDEV_DIR = {
+    bdev: "dir",
+    /**
+     * Place rootfs directory under DIR
+     */
+    dir: string
+}
+
 export type CreateOptions = {
     /**
      * NAME of the container
@@ -72,7 +81,7 @@ export type CreateOptions = {
     /**
      * Initial configuration file
      */
-    config: string,
+    config?: string,
     /**
      *  Template to use to setup the container
      */
@@ -82,12 +91,14 @@ export type CreateOptions = {
      * To see the list of options supported by the template, you can run lxc-create -t TEMPLATE -h.
      */
     "--": string[]
-    /**
-     * Place rootfs directory under DIR
-     */
-    dir: string,
-} & (BDEV_LVM | BDEV_RBD | BDEV_ZFS | BDEV_LVM_LOOP) & CommonOptions
+
+} & (BDEV_DIR | BDEV_LVM | BDEV_RBD | BDEV_ZFS | BDEV_LVM_LOOP) & CommonOptions
+
 
 export const CreateOptionMapper = {
-    
+    "--": (key: string, value: string[]) => {
+        return [key,...value];
+    }
 }
+
+export const create = (options: CreateOptions, execOptions: ExecOptions) => execFile("lxc-create", OptionMapper(CreateOptionMapper, options), execOptions);
