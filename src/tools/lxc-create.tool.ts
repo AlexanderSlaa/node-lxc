@@ -70,7 +70,7 @@ export type BDEV_DIR = {
     /**
      * Place rootfs directory under DIR
      */
-    dir: string
+    dir?: string
 }
 
 export type CreateOptions = {
@@ -87,8 +87,7 @@ export type CreateOptions = {
      */
     template: string,
     /**
-     * This will pass template-options to the template as arguments.
-     * To see the list of options supported by the template, you can run lxc-create -t TEMPLATE -h.
+     *  Run the container in the foreground. In this mode, the container console will be attached to the current tty and signals will be routed directly to the container.
      */
     "--": string[]
 
@@ -97,7 +96,7 @@ export type CreateOptions = {
 
 export const CreateOptionMapper = {
     "--": (key: string, value: string[]) => {
-        return [key,...value];
+        return [key, ...value];
     }
 }
 

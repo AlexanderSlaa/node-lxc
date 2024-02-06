@@ -88,12 +88,14 @@ export class Container {
     // clearConfigItem(key: string): boolean;
     // clearConfig(): void;
 
-    attach(options: WithoutName<AttachOptions> & { stdio: [Writable | null, Readable | null, Readable | null] }) {
+    attach(options: WithoutName<AttachOptions> & { stdio: [Readable | null, Writable | null, Writable | null] }) {
         if (!this.defined) {
             throw "Container not defined";
         }
         const process = LXCAttach({name: this.name, ...options, ...this._options}, {});
-        process.stderr.pipe()
+        if(options?.stdio?.[0]) options.stdio[0].pipe(process.stdin);
+        if(options?.stdio?.[1]) process.stdout.pipe(options.stdio[1]);
+        if(options?.stdio?.[2]) process.stderr.pipe(options.stdio[2]);
     }
 
     // exec(clear_env: string, namespace: number, personality: number, uid: null, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;

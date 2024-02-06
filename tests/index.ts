@@ -1,5 +1,5 @@
 import {Container, LXC} from "../index";
-import * as Path from "path";
+import {LogPriority} from "../src/tools";
 
 console.log(`LXC version(${LXC.version})`);
 
@@ -12,14 +12,17 @@ async function main() {
     if (c.defined) {
         c.destroy();
     }
-    await c.create({
+    const p = c.create({
         bdev: "dir",
-        dir: Path.resolve(`./node-ct/rootfs`),
         template: "download",
+        logpriority: LogPriority.TRACE,
+        logfile: "./node-ct/.log",
         '--': ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]
-    }).then((c) => c.start())
+    });
+    p.on("data", console.log);
+    await p.then((c) => c.start({foreground: true}))
     console.log(c.state);
-    c.attach({})
+    c.attach({stdio: [process.stdin, process.stdout, process.stderr]})
 }
 
 main().catch(console.error);
