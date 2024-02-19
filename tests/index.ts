@@ -1,4 +1,5 @@
-import { Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL } from "../index";
+import {Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL} from "../index";
+import {openSync} from "fs";
 
 console.log(`LXC version(${LXC.version})`);
 
@@ -20,8 +21,10 @@ async function main() {
 
     console.log(c.name);
 
+    c.daemonize(true);
+
     if (!c.defined) {
-        console.log("created", c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
+        console.log("created", await c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
         console.log(process.pid);
     }
 
@@ -34,7 +37,7 @@ async function main() {
 
     const attach_flags = LXC_ATTACH.DEFAULT;
 
-    c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags);
+    console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags));
 
 
 }

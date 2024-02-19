@@ -195,18 +195,47 @@ export type ContainerAttachOptions = ({
     }
 
 export type bdev_specs = {
-    fstype: string;	 /*!< Filesystem type */
-    fssize: number;/*!< Filesystem size in bytes */
-    zfs: { zfsroot: string }; /*!< ZFS root path */
+    /**
+     * Filesystem type
+     */
+    fstype: string;
+    /**
+     * Filesystem size in bytes
+     */
+    fssize: number;
+    zfs: {
+        /**
+         * ZFS root path
+         */
+        zfsroot: string
+    }; /*  */
     lvm: {
-        vg: string;		/*!< LVM Volume Group name */
-        lv: string;		/*!< LVM Logical Volume name */
-        thinpool: string; /*!< LVM thin pool to use, if any */
+        /**
+         * LVM Volume Group name
+         */
+        vg: string;
+        /**
+         * LVM Logical Volume name
+         */
+        lv: string;
+        /**
+         * LVM thin pool to use, if any
+         */
+        thinpool: string;
     };
-    dir: string; /*!< Directory path */
+    /**
+     * Directory path
+     */
+    dir: string;
     rbd: {
-        rbdname: string; /*!< RBD image name */
-        rbdpool: string; /*!< Ceph pool name */
+        /**
+         * RBD image name
+         */
+        rbdname: string;
+        /**
+         * Ceph pool name
+         */
+        rbdpool: string;
     }
 }
 
@@ -215,18 +244,17 @@ export type Container = {
     get state(): "STOPPED" | "STARTING" | "RUNNING" | "ABORTING" | "STOPPING";
     get defined(): boolean;
 
-    new(name: string, configPath?: string): Container,
+    new(name: string, configPath?: string): Container;
 
     start(useinit: number, argv: string[]): Promise<void>;
-    // start():boolean;
     stop(): boolean;
-    create(template: string, bdevtype: string, bdev_specs: Partial<bdev_specs>, flags: number, argv: string[]): boolean;
+    create(template: string, bdevtype: string, bdev_specs: Partial<bdev_specs>, flags: number, argv: string[]): Promise<void>;
     getConfigItem(key: string): string;
     setConfigItem(key: string, value: string): boolean;
     clearConfigItem(key: string): boolean;
     clearConfig(): void;
 
-    attach(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;
+    attach(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): Promise<number>;
     // exec(clear_env: string, namespace: number, personality: number, uid: null, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): number;
 
     daemonize(v: boolean): boolean;
