@@ -3,27 +3,30 @@
 //
 
 #include <sys/wait.h>
+#include "./helpers/check_params.h"
+#include "./helpers/assert.h"
+#include "./helpers/array.h"
 #include "Container.h"
+#include "helpers/promise_worker.h"
 
-Napi::Object Container::Init(Napi::Env env, Napi::Object exports)
-{
+Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
     Napi::Function func =
-        DefineClass(env, "Container", {
-                                          InstanceAccessor("name", &Container::GetName, nullptr),
-                                          InstanceAccessor("state", &Container::GetState, nullptr),
-                                          InstanceAccessor("defined", &Container::GetDefined, nullptr),
-                                          InstanceMethod("start", &Container::Start),
-                                          InstanceMethod("stop", &Container::Stop),
-                                          InstanceMethod("create", &Container::Create),
-                                          InstanceMethod("getConfigItem", &Container::GetConfigItem),
-                                          InstanceMethod("setConfigItem", &Container::SetConfigItem),
-                                          InstanceMethod("clearConfigItem", &Container::ClearConfigItem),
-                                          InstanceMethod("clearConfig", &Container::ClearConfig),
-                                          InstanceMethod("clearConfig", &Container::ClearConfig),
-                                          InstanceMethod("attach", &Container::Attach),
-                                          InstanceMethod("exec", &Container::Exec),
-                                          InstanceMethod("daemonize", &Container::Daemonize),
-                                      });
+            DefineClass(env, "Container", {
+                    InstanceAccessor("name", &Container::GetName, nullptr),
+                    InstanceAccessor("state", &Container::GetState, nullptr),
+                    InstanceAccessor("defined", &Container::GetDefined, nullptr),
+                    InstanceMethod("start", &Container::Start),
+                    InstanceMethod("stop", &Container::Stop),
+                    InstanceMethod("create", &Container::Create),
+                    InstanceMethod("getConfigItem", &Container::GetConfigItem),
+                    InstanceMethod("setConfigItem", &Container::SetConfigItem),
+                    InstanceMethod("clearConfigItem", &Container::ClearConfigItem),
+                    InstanceMethod("clearConfig", &Container::ClearConfig),
+                    InstanceMethod("clearConfig", &Container::ClearConfig),
+                    InstanceMethod("attach", &Container::Attach),
+                    InstanceMethod("exec", &Container::Exec),
+                    InstanceMethod("daemonize", &Container::Daemonize),
+            });
 
     auto constructor = Napi::Persistent(func);
     constructor.SuppressDestruct(); // Prevent the destructor, as it will be handled by N-API.
@@ -31,127 +34,88 @@ Napi::Object Container::Init(Napi::Env env, Napi::Object exports)
     return exports;
 }
 
-Napi::Value Container::GetName(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::GetName(const Napi::CallbackInfo &info) {
     return Napi::String::New(info.Env(), _container->name);
 }
 
-Napi::Value Container::GetState(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::GetState(const Napi::CallbackInfo &info) {
     return Napi::String::New(info.Env(), _container->state(_container));
 }
 
-Napi::Value Container::GetDefined(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::GetDefined(const Napi::CallbackInfo &info) {
     return Napi::Boolean::New(info.Env(), _container->is_defined(_container));
 }
 
-Container::Container(const Napi::CallbackInfo &info) : Napi::ObjectWrap<Container>(info)
-{
+Container::Container(const Napi::CallbackInfo &info) : Napi::ObjectWrap<Container>(info) {
     Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsString())
-    {
+    if (info.Length() <= 0 || !info[0].IsString()) {
         Napi::TypeError::New(env, "String expected").ThrowAsJavaScriptException();
         return;
     }
     _container = lxc_container_new(info[0].ToString().Utf8Value().c_str(),
-                                   info[1].IsString() ? info[1].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.lxcpath"));
-    if (info[2].IsString() && strcmp(info[2].ToString().Utf8Value().c_str(), "none") != 0)
-    {
-        _container->load_config(_container, info[2].IsString() ? info[2].ToString().Utf8Value().c_str() : lxc_get_global_config_item("lxc.default_config"));
+                                   info[1].IsString() ? info[1].ToString().Utf8Value().c_str()
+                                                      : lxc_get_global_config_item("lxc.lxcpath"));
+    if (info[2].IsString() && strcmp(info[2].ToString().Utf8Value().c_str(), "none") != 0) {
+        _container->load_config(_container, info[2].IsString() ? info[2].ToString().Utf8Value().c_str()
+                                                               : lxc_get_global_config_item("lxc.default_config"));
     }
 }
 
-Container::~Container()
-{
-    if (_container)
-    {
+Container::~Container() {
+    if (_container) {
         // Clean up the container if needed
         lxc_container_put(_container);
     }
 }
 
-Napi::Value Container::Start(const Napi::CallbackInfo &info)
-{
-    Napi::Env env = info.Env();
-    Napi::Value ret = env.Null();
-    if (info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray())
-    {
-        Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    if (!_container->may_control(_container))
-    {
-        Napi::Error::New(env, "Insufficent privileges to control container").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    if (_container->is_running(_container))
-    {
-        return Napi::Boolean::New(env, true);
-    }
+Napi::Value Container::Start(const Napi::CallbackInfo &info) {
+    auto deferred = Napi::Promise::Deferred::New(info.Env());
+    assert_deferred(_container, "Invalid container pointer");
+    check_params_deferred(info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray(), "Invalid arguments");
 
     // Get the array of strings from the JavaScript side
-    Napi::Array jsArray = info[1].As<Napi::Array>();
+    auto useinit = info[0].ToNumber().Int32Value();
+    auto jsArray = info[1].As<Napi::Array>();
 
-    // Allocate memory for char* pointers
-    char **argv = new char *[jsArray.Length() + 1]; // +1 for the null terminator
+    char **argv = napiArrayToCharStarArray(jsArray);
+    auto length = jsArray.Length();
 
-    // Copy the strings to the allocated memory
-    for (size_t i = 0; i < jsArray.Length(); ++i)
-    {
-        Napi::Value element = jsArray.Get(i);
-        if (!element.IsString())
-        {
-            Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
-            delete[] argv; // Cleanup on error
-            return env.Null();
+
+    auto worker = new PromiseWorker(deferred, [this, useinit, argv, length](PromiseWorker *worker) {
+        if (!this->_container->may_control(this->_container)) {
+            worker->Error("Insufficient privileges to control container");
+            return;
         }
-        std::string str = element.As<Napi::String>().Utf8Value();
-        argv[i] = strdup(str.c_str());
-    }
+        if (this->_container->is_running(_container)) {
+            return;
+        }
 
-    // Null-terminate the char* array
-    argv[jsArray.Length()] = NULL;
-
-    if (!_container->start(_container, info[0].ToNumber().Int32Value(), argv))
-    {
-        Napi::Error::New(env, strerror(_container->error_num)).ThrowAsJavaScriptException();
-    }
-
-    // Cleanup: Free allocated memory
-    for (size_t i = 0; i < jsArray.Length(); ++i)
-    {
-        delete[] argv[i];
-    }
-    delete[] argv;
-
-    ret = Napi::Boolean::New(env, true);
-    return ret;
+        if (!_container->start(_container, useinit, argv)) {
+            worker->Error(strerror(_container->error_num));
+        }
+        freeCharStarArray(argv, length);
+    });
+    worker->Queue();
+    return deferred.Promise();
 }
 
-Napi::Value Container::Stop(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::Stop(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
     // Call the stop function
     auto res = _container->stop(_container);
     return Napi::Boolean::New(env, res);
 }
 
-Napi::Value Container::Create(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::Create(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
 
-    if (_container->is_defined(_container))
-    {
+    if (_container->is_defined(_container)) {
         Napi::Error::New(env, "Container already exits").ThrowAsJavaScriptException();
         return env.Null();
     }
 
     if (info.Length() <= 4 || !info[0].IsString() || !info[1].IsString() || !info[2].IsObject() ||
-        !info[3].IsNumber() || !info[4].IsArray())
-    {
+        !info[3].IsNumber() || !info[4].IsArray()) {
         Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
         return env.Null();
     }
@@ -164,54 +128,54 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info)
     Napi::Object bdevSpecsObj = info[2].As<Napi::Object>();
     // Extract values from bdevSpecsObj and populate your struct bdev_specs
     bdev_specs bdevSpecs{
-        .fstype = bdevSpecsObj.Has("fstype") && bdevSpecsObj.Get("fstype").IsString() ? strdup(bdevSpecsObj.Get(
-                                                                                                               "fstype")
-                                                                                                   .ToString()
-                                                                                                   .Utf8Value()
-                                                                                                   .c_str())
-                                                                                      : nullptr,
-        .fssize = bdevSpecsObj.Has("fssize") && bdevSpecsObj.Get("fstype").IsNumber()
+            .fstype = bdevSpecsObj.Has("fstype") && bdevSpecsObj.Get("fstype").IsString() ? strdup(bdevSpecsObj.Get(
+                            "fstype")
+                                                                                                           .ToString()
+                                                                                                           .Utf8Value()
+                                                                                                           .c_str())
+                                                                                          : nullptr,
+            .fssize = bdevSpecsObj.Has("fssize") && bdevSpecsObj.Get("fstype").IsNumber()
                       ? static_cast<uint64_t>(bdevSpecsObj.Get(
-                                                              "fssize")
-                                                  .ToNumber()
-                                                  .Int64Value())
+                                    "fssize")
+                            .ToNumber()
+                            .Int64Value())
                       : 0,
-        .zfs{
-            .zfsroot = bdevSpecsObj.Has("zfs") && bdevSpecsObj.Get("zfs").IsObject() &&
+            .zfs{
+                    .zfsroot = bdevSpecsObj.Has("zfs") && bdevSpecsObj.Get("zfs").IsObject() &&
                                bdevSpecsObj.Get("zfs").ToObject().Has("zfsroot")
-                           ? (char *)strdup(
-                                 bdevSpecsObj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str())
-                           : nullptr,
-        },
-        .lvm{
-            .vg = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
+                               ? (char *) strdup(
+                                    bdevSpecsObj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str())
+                               : nullptr,
+            },
+            .lvm{
+                    .vg = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
                           bdevSpecsObj.Get("lvm").ToObject().Has("vg")
-                      ? (char *)strdup(bdevSpecsObj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str())
-                      : nullptr,
-            .lv = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
+                          ? (char *) strdup(bdevSpecsObj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str())
+                          : nullptr,
+                    .lv = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
                           bdevSpecsObj.Get("lvm").ToObject().Has("lv")
-                      ? (char *)strdup(bdevSpecsObj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str())
-                      : nullptr,
-            .thinpool = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
+                          ? (char *) strdup(bdevSpecsObj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str())
+                          : nullptr,
+                    .thinpool = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
                                 bdevSpecsObj.Get("lvm").ToObject().Has("thinpool")
-                            ? (char *)strdup(
-                                  bdevSpecsObj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str())
-                            : nullptr},
-        .dir = bdevSpecsObj.Has("dir") && bdevSpecsObj.Get("dir").IsString() ? (char *)strdup(
-                                                                                   bdevSpecsObj.Get("dir").ToString().Utf8Value().c_str())
-                                                                             : nullptr,
-        .rbd{
-            .rbdname = bdevSpecsObj.Has("rbd") && bdevSpecsObj.Get("rbd").IsObject() &&
+                                ? (char *) strdup(
+                                    bdevSpecsObj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str())
+                                : nullptr},
+            .dir = bdevSpecsObj.Has("dir") && bdevSpecsObj.Get("dir").IsString() ? (char *) strdup(
+                    bdevSpecsObj.Get("dir").ToString().Utf8Value().c_str())
+                                                                                 : nullptr,
+            .rbd{
+                    .rbdname = bdevSpecsObj.Has("rbd") && bdevSpecsObj.Get("rbd").IsObject() &&
                                bdevSpecsObj.Get("rbd").ToObject().Has("rbdname")
-                           ? (char *)strdup(
-                                 bdevSpecsObj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str())
-                           : nullptr,
-            .rbdpool = bdevSpecsObj.Has("rbd") && bdevSpecsObj.Get("rbd").IsObject() &&
+                               ? (char *) strdup(
+                                    bdevSpecsObj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str())
+                               : nullptr,
+                    .rbdpool = bdevSpecsObj.Has("rbd") && bdevSpecsObj.Get("rbd").IsObject() &&
                                bdevSpecsObj.Get("rbd").ToObject().Has("rbdpool")
-                           ? (char *)strdup(
-                                 bdevSpecsObj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str())
-                           : nullptr,
-        },
+                               ? (char *) strdup(
+                                    bdevSpecsObj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str())
+                               : nullptr,
+            },
     };
     // Get the creation flags for the container
     int flags = info[3].ToNumber().Int32Value();
@@ -223,11 +187,9 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info)
     char **argv = new char *[jsArray.Length() + 1]; // +1 for the null terminator
 
     // Copy the strings to the allocated memory
-    for (size_t i = 0; i < jsArray.Length(); ++i)
-    {
+    for (size_t i = 0; i < jsArray.Length(); ++i) {
         Napi::Value element = jsArray.Get(i);
-        if (!element.IsString())
-        {
+        if (!element.IsString()) {
             Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
             delete[] argv; // Cleanup on error
             return env.Null();
@@ -243,16 +205,14 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info)
 
     // Call the create function
     auto res = _container->create(_container, t, bdevtype, &bdevSpecs, flags, argv);
-    if (!res)
-    {
+    if (!res) {
         Napi::Error::New(env, strerror(errno)).ThrowAsJavaScriptException();
         delete[] argv; // Cleanup on error
         return env.Null();
     }
 
     // Cleanup: Free allocated memory
-    for (size_t i = 0; i < jsArray.Length(); ++i)
-    {
+    for (size_t i = 0; i < jsArray.Length(); ++i) {
         delete[] argv[i];
     }
     delete[] argv;
@@ -262,11 +222,9 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info)
     return Napi::Boolean::New(env, res);
 }
 
-Napi::Value Container::GetConfigItem(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::GetConfigItem(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsString())
-    {
+    if (info.Length() <= 0 || !info[0].IsString()) {
         Napi::TypeError::New(env, "String expected").ThrowAsJavaScriptException();
         return env.Null();
     }
@@ -274,18 +232,16 @@ Napi::Value Container::GetConfigItem(const Napi::CallbackInfo &info)
     char *value;
 
     int len = _container->get_config_item(_container, info[0].ToString().Utf8Value().c_str(), nullptr, 0);
-    if (len <= 0)
-    {
+    if (len <= 0) {
         return env.Null();
     }
 
-again:
-    value = (char *)malloc(sizeof(char) * len + 1);
+    again:
+    value = (char *) malloc(sizeof(char) * len + 1);
     if (value == nullptr)
         goto again;
 
-    if (_container->get_config_item(_container, info[0].ToString().Utf8Value().c_str(), value, len + 1) != len)
-    {
+    if (_container->get_config_item(_container, info[0].ToString().Utf8Value().c_str(), value, len + 1) != len) {
         free(value);
         return env.Null();
     }
@@ -293,11 +249,9 @@ again:
     return Napi::String::New(env, value);
 }
 
-Napi::Value Container::SetConfigItem(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::SetConfigItem(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsString() || !info[1].IsString())
-    {
+    if (info.Length() <= 0 || !info[0].IsString() || !info[1].IsString()) {
         Napi::TypeError::New(env, "String expected").ThrowAsJavaScriptException();
         return env.Null();
     }
@@ -305,30 +259,25 @@ Napi::Value Container::SetConfigItem(const Napi::CallbackInfo &info)
                                                                info[1].ToString().Utf8Value().c_str()));
 }
 
-Napi::Value Container::ClearConfigItem(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::ClearConfigItem(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsString())
-    {
+    if (info.Length() <= 0 || !info[0].IsString()) {
         Napi::TypeError::New(env, "String expected").ThrowAsJavaScriptException();
         return env.Null();
     }
     return Napi::Boolean::New(env, _container->clear_config_item(_container, info[0].ToString().Utf8Value().c_str()));
 }
 
-void Container::ClearConfig(const Napi::CallbackInfo &info)
-{
+void Container::ClearConfig(const Napi::CallbackInfo &info) {
     _container->clear_config(_container);
 }
 
-int wait_for_pid_status(pid_t pid)
-{
+int wait_for_pid_status(pid_t pid) {
     int status, ret;
 
-again:
+    again:
     ret = waitpid(pid, &status, 0);
-    if (ret == -1)
-    {
+    if (ret == -1) {
         if (errno == EINTR)
             goto again;
         return -1;
@@ -338,8 +287,7 @@ again:
     return status;
 }
 
-Napi::Value Container::Attach(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
     if (info.Length() <= 0 ||
         !info[0].IsBoolean() || // CLEAN_ENV
@@ -353,14 +301,12 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
         !info[8].IsArray() ||   // ENV
         !info[9].IsArray() ||   // KEEP_ENV
         !info[10].IsNumber()    // FLAGS
-    )
-    {
+            ) {
         Napi::TypeError::New(env, "Invalid parameters").ThrowAsJavaScriptException();
         return env.Null();
     }
 
-    if (!_container->is_running(_container))
-    {
+    if (!_container->is_running(_container)) {
         Napi::Error::New(env, "Container is not running").ThrowAsJavaScriptException();
         return env.Null();
     }
@@ -372,8 +318,7 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     attach_options.attach_flags = info[10].ToNumber().Int32Value();
 
     attach_options.env_policy = LXC_ATTACH_KEEP_ENV;
-    if (info[0].ToBoolean())
-    {
+    if (info[0].ToBoolean()) {
         attach_options.env_policy = LXC_ATTACH_CLEAR_ENV;
     }
 
@@ -386,26 +331,23 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     Napi::Array groups_array = info[5].As<Napi::Array>();
     size_t groups_array_len = groups_array.Length();
     lxc_groups_t groups = {
-        .size = groups_array_len,
-        .list = groups_array_len > 0 ? new gid_t[groups_array_len] : nullptr};
-    if (groups.list != nullptr)
-    {
-        for (size_t i = 0; i < groups_array_len; ++i)
-        {
+            .size = groups_array_len,
+            .list = groups_array_len > 0 ? new gid_t[groups_array_len] : nullptr};
+    if (groups.list != nullptr) {
+        for (size_t i = 0; i < groups_array_len; ++i) {
             groups_array[i] = strdup(groups_array.Get(i).ToString().Utf8Value().c_str());
         }
     }
 
-    if (groups.size > 0)
-    {
+    if (groups.size > 0) {
         attach_options.groups = groups;
         attach_options.attach_flags &= LXC_ATTACH_SETGROUPS;
     }
 #endif
 
-    attach_options.stdin_fd = info[6].As<Napi::Array>().Get((uint32_t)0).ToNumber().Int32Value(); // STDINFD
-    attach_options.stdout_fd = info[6].As<Napi::Array>().Get((uint32_t)1).ToNumber().Int32Value();
-    attach_options.stderr_fd = info[6].As<Napi::Array>().Get((uint32_t)2).ToNumber().Int32Value();
+    attach_options.stdin_fd = info[6].As<Napi::Array>().Get((uint32_t) 0).ToNumber().Int32Value(); // STDINFD
+    attach_options.stdout_fd = info[6].As<Napi::Array>().Get((uint32_t) 1).ToNumber().Int32Value();
+    attach_options.stderr_fd = info[6].As<Napi::Array>().Get((uint32_t) 2).ToNumber().Int32Value();
 
     attach_options.initial_cwd = strdup(info[7].ToString().Utf8Value().c_str());
 
@@ -416,11 +358,9 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     char **extra_env_vars = new char *[js_extra_env_vars.Length() + 1]; // +1 for the null terminator
 
     // Copy the strings to the allocated memory
-    for (size_t i = 0; i < js_extra_env_vars.Length(); ++i)
-    {
+    for (size_t i = 0; i < js_extra_env_vars.Length(); ++i) {
         Napi::Value element = js_extra_env_vars.Get(i);
-        if (!element.IsString())
-        {
+        if (!element.IsString()) {
             Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
             delete[] extra_env_vars; // Cleanup on error
             return env.Null();
@@ -443,11 +383,9 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     char **extra_keep_env = new char *[js_extra_keep_env.Length() + 1]; // +1 for the null terminator
 
     // Copy the strings to the allocated memory
-    for (size_t i = 0; i < js_extra_keep_env.Length(); ++i)
-    {
+    for (size_t i = 0; i < js_extra_keep_env.Length(); ++i) {
         Napi::Value element = js_extra_keep_env.Get(i);
-        if (!element.IsString())
-        {
+        if (!element.IsString()) {
             Napi::TypeError::New(env, "String expected in the array").ThrowAsJavaScriptException();
             delete[] extra_env_vars; // Cleanup on error
             return env.Null();
@@ -464,33 +402,28 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info)
     attach_options.extra_keep_env = extra_keep_env;
 
     ret = _container->attach(_container, lxc_attach_run_shell, NULL, &attach_options, &pid);
-    if (ret < 0)
-    {
+    if (ret < 0) {
         goto end;
     }
 
     ret = wait_for_pid_status(pid);
-    if (ret < 0)
-    {
+    if (ret < 0) {
         goto end;
     }
 
-    if (WIFEXITED(ret))
-    {
+    if (WIFEXITED(ret)) {
         ret = WEXITSTATUS(ret);
         goto end;
     }
-end:
+    end:
     // free extra_env_vars
-    for (size_t i = 0; i < js_extra_env_vars.Length(); ++i)
-    {
+    for (size_t i = 0; i < js_extra_env_vars.Length(); ++i) {
         delete[] extra_env_vars[i];
     }
     delete[] extra_env_vars;
 
     // free extra_keep_env
-    for (size_t i = 0; i < js_extra_keep_env.Length(); ++i)
-    {
+    for (size_t i = 0; i < js_extra_keep_env.Length(); ++i) {
         delete[] extra_keep_env[i];
     }
     delete[] extra_keep_env;
@@ -498,16 +431,13 @@ end:
     return Napi::Number::New(env, ret);
 }
 
-Napi::Value Container::Exec(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
     return Napi::Value();
 }
 
-Napi::Value Container::Daemonize(const Napi::CallbackInfo &info)
-{
+Napi::Value Container::Daemonize(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsBoolean())
-    {
+    if (info.Length() <= 0 || !info[0].IsBoolean()) {
         Napi::TypeError::New(env, "Invalid parameter").ThrowAsJavaScriptException();
         return env.Null();
     }

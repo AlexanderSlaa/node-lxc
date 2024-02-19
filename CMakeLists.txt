@@ -21,7 +21,7 @@ string(REGEX REPLACE "[\r\n\"]" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${NODE_ADDON_API_DIR})
 
 # define NAPI_VERSION
-add_definitions(-DNAPI_VERSION=3)
+add_definitions(-DNAPI_VERSION=9)
 
 # Add the directory containing lxc/lxccontainer.h to the include directories
 find_path(LXC_INCLUDE_DIR NAMES lxc/lxccontainer.h)
