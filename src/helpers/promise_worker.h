@@ -6,12 +6,13 @@
 #define NODE_LIBVIRT_PROMISEWORKER_H
 
 #include <napi.h>
-#include <libvirt/libvirt.h>
+#include "./Undefined.h"
 #include <stdexcept>
 
+template <typename W = Undefined, typename T = nullptr_t>
 class PromiseWorker : public Napi::AsyncWorker {
 public:
-    PromiseWorker(const Napi::Promise::Deferred &deferred, std::function<void(PromiseWorker *)> &&asyncFunction,
+    PromiseWorker(const Napi::Promise::Deferred &deferred, std::function<void(PromiseWorker<W,T> *)> &&asyncFunction,
                   void *data = nullptr)
             : Napi::AsyncWorker(deferred.Env()), deferred_(deferred), asyncFunction_(std::move(asyncFunction)),
               data_(data) {}
@@ -24,7 +25,7 @@ public:
         }
     }
 
-    void Result(Napi::Value val) {
+    void Result(T val) {
         val_ = val;
     }
 
@@ -34,14 +35,7 @@ public:
 
     void OnOK() override {
         Napi::HandleScope scope(Env());
-        if (!this->val_) {
-            this->val_ = Env().Null();
-        }
-        deferred_.Resolve(val_);
-    }
-
-    Napi::Env env() {
-        return Env();
+        deferred_.Resolve(W::New(Env(), this->val_));
     }
 
     void OnError(const Napi::Error &e) override {
@@ -56,9 +50,9 @@ public:
 
 private:
     Napi::Promise::Deferred deferred_;
-    std::function<void(PromiseWorker *)> asyncFunction_;
+    std::function<void(PromiseWorker<W,T> *)> asyncFunction_;
     void *data_;
-    Napi::Value val_;
+    T val_;
 };
 
 

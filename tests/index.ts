@@ -5,7 +5,7 @@ console.log(`LXC version(${LXC.version})`);
 
 
 async function main() {
-    const name = "nodect"
+    const name = "node-ct2"
 
     const c = new Container(name);
 
@@ -38,6 +38,34 @@ async function main() {
     const attach_flags = LXC_ATTACH.DEFAULT;
 
     console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags));
+    // console.log("pid:", await c.exec(
+    //     false,
+    //     -1,
+    //     -1,
+    //     -1,
+    //     -1,
+    //     [],
+    //     [process.stdin.fd, process.stdout.fd, process.stderr.fd],
+    //     "/",
+    //     [],
+    //     [],
+    //     attach_flags,
+    //     ['echo', 'helloworld', '|', 'test.txt']
+    // ));
+    console.log("pid:", await c.exec(
+        false,
+        -1,
+        -1,
+        -1,
+        -1,
+        [],
+        [process.stdin.fd, process.stdout.fd, process.stderr.fd],
+        "/",
+        [],
+        [],
+        attach_flags,
+        ['cat', 'test.txt']
+    ));
 
 
 }

@@ -8,6 +8,7 @@
 #include "./helpers/array.h"
 #include "Container.h"
 #include "helpers/promise_worker.h"
+#include "helpers/Undefined.h"
 
 Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
     Napi::Function func =
@@ -80,7 +81,9 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info) {
     char **argv = napiArrayToCharStarArray(jsArray);
     auto argvLength = jsArray.Length();
 
-    auto worker = new PromiseWorker(deferred, [this, useinit, argv, argvLength](PromiseWorker *worker) {
+    auto worker = new PromiseWorker<Napi::Number, int>(
+            deferred,
+            [this, useinit, argv, argvLength](PromiseWorker<Napi::Number, int> *worker) {
         if (!this->_container->may_control(this->_container)) {
             worker->Error("Insufficient privileges to control container");
             return;
@@ -181,9 +184,9 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info) {
     char **argv = napiArrayToCharStarArray(jsArray);
     auto argvLength = jsArray.Length();
 
-    auto worker = new PromiseWorker(
+    auto worker = new PromiseWorker<Undefined>(
             deferred,
-            [this, t, argv, argvLength, bdevtype, bdevSpecs, flags](PromiseWorker *worker) {
+            [this, t, argv, argvLength, bdevtype, bdevSpecs, flags](PromiseWorker<Undefined> *worker) {
                 if (_container->is_defined(_container)) {
                     worker->Error("Container already exits");
                     return;
@@ -340,10 +343,10 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
 
     attach_options->extra_keep_env = extra_keep_env;
 
-    auto worker = new PromiseWorker(
+    auto worker = new PromiseWorker<Napi::Number, int>(
             deferred,
             [this, attach_options, extra_env_vars, extra_env_varsLength, extra_keep_env, extra_keep_envLength](
-                    PromiseWorker *worker) {
+                    PromiseWorker<Napi::Number, int> *worker) {
                 pid_t pid;
                 int ret = _container->attach(_container, lxc_attach_run_shell, nullptr, attach_options, &pid);
                 if (ret < 0) {
@@ -362,7 +365,7 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
                 freeCharStarArray(extra_env_vars, extra_env_varsLength);
                 freeCharStarArray(extra_keep_env, extra_keep_envLength);
                 free(attach_options);
-                worker->Result(Napi::Number::New(worker->env(), pid));
+                worker->Result(pid);
                 // TODO: Probably free group items as well;
             });
     worker->Queue();
@@ -384,7 +387,6 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
                           !info[8].IsArray() ||   // ENV
                           !info[9].IsArray() ||   // KEEP_ENV
                           !info[10].IsNumber() ||    // FLAGS
-                          !info[11].IsString() ||   // PROGRAM
                           !info[11].IsArray(),   // ARGV
                           "Invalid arguments");
 
@@ -446,33 +448,25 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
     attach_options->extra_keep_env = extra_keep_env;
 
     auto *command = (lxc_attach_command_t *) malloc(sizeof(struct lxc_attach_command_t));
-    command->program =
+    auto argv = napiArrayToCharStarArray(info[11].As<Napi::Array>());
+    command->program = argv[0];
+    command->argv = argv;
 
-
-    auto worker = new PromiseWorker(
+    auto worker = new PromiseWorker<Napi::Number,int>(
             deferred,
-            [this, attach_options, extra_env_vars, extra_env_varsLength, extra_keep_env, extra_keep_envLength](
-                    PromiseWorker *worker) {
+            [this, command, argv, attach_options, extra_env_vars, extra_env_varsLength, extra_keep_env, extra_keep_envLength](
+                    PromiseWorker<Napi::Number,int> *worker) {
                 pid_t pid;
-                int ret = _container->attach(_container, lxc_attach_run_command, nullptr, attach_options, &pid);
-                if (ret < 0) {
+                if (_container->attach(_container, lxc_attach_run_command, command, attach_options, &pid) < 0) {
                     worker->Error(strerror(errno));
                 }
-                ret = wait_for_pid_status(pid);
-                if (ret < 0) {
-                    goto end;
-                }
-                if (WIFEXITED(ret)) {
-                    ret = WEXITSTATUS(ret);
-                    goto end;
-                }
-                end:
                 // Cleanup: Free allocated memory
                 freeCharStarArray(extra_env_vars, extra_env_varsLength);
                 freeCharStarArray(extra_keep_env, extra_keep_envLength);
                 free(attach_options);
-                worker->Result(Napi::Number::New(worker->env(), pid));
-                // TODO: Probably free group items as well;
+                free(argv);
+                free(command);
+                worker->Result(pid);
             });
     worker->Queue();
     return deferred.Promise();
