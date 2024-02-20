@@ -49,8 +49,7 @@ struct migrate_opts
  * migrate options to, so that we don't have to have a massive function
  * signature when the list of options grows.
  */
-struct extra_migrate_opts
-{
+struct extra_migrate_opts {
     bool preserves_inodes;
     char *action_script;
     uint64_t ghost_limit;
@@ -67,8 +66,7 @@ struct lxc_console_log
 };
 #endif
 
-class Container : public Napi::ObjectWrap<Container>
-{
+class Container : public Napi::ObjectWrap<Container> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
@@ -77,31 +75,49 @@ public:
     ~Container();
 
     Napi::Value GetName(const Napi::CallbackInfo &info);
+    void SetName(const Napi::CallbackInfo &info, const Napi::Value &value);
+
+
+
     Napi::Value GetState(const Napi::CallbackInfo &info);
+    Napi::Value GetRunning(const Napi::CallbackInfo &info);
+    Napi::Value GetInitPID(const Napi::CallbackInfo &info);
+    Napi::Value GetConfigFileName(const Napi::CallbackInfo &info);
+
+
     Napi::Value GetDefined(const Napi::CallbackInfo &info);
 
 private:
-    Napi::Value Start(const Napi::CallbackInfo &info);
 
+    Napi::Value Freeze(const Napi::CallbackInfo &info);
+    Napi::Value Unfreeze(const Napi::CallbackInfo &info);
+    Napi::Value LoadConfig(const Napi::CallbackInfo &info);
+
+
+    Napi::Value Start(const Napi::CallbackInfo &info);
     Napi::Value Stop(const Napi::CallbackInfo &info);
 
-    Napi::Value Create(const Napi::CallbackInfo &info);
-
-    Napi::Value GetConfigItem(const Napi::CallbackInfo &info);
-
+    Napi::Value Daemonize(const Napi::CallbackInfo &info);
+    Napi::Value CloseAllFds(const Napi::CallbackInfo &info);
+    Napi::Value Wait(const Napi::CallbackInfo &info);
     Napi::Value SetConfigItem(const Napi::CallbackInfo &info);
+    Napi::Value Destroy(const Napi::CallbackInfo &info);
+    Napi::Value Save(const Napi::CallbackInfo &info);
 
-    Napi::Value ClearConfigItem(const Napi::CallbackInfo &info);
+    Napi::Value Create(const Napi::CallbackInfo &info);
+    Napi::Value Reboot(const Napi::CallbackInfo &info);
+    Napi::Value Shutdown(const Napi::CallbackInfo &info);
 
     void ClearConfig(const Napi::CallbackInfo &info);
+    Napi::Value ClearConfigItem(const Napi::CallbackInfo &info);
+    Napi::Value GetConfigItem(const Napi::CallbackInfo &info);
 
     // Attach with wait for process lxc_attach_run_shell
     Napi::Value Attach(const Napi::CallbackInfo &info);
-
     // Attach with no wait lxc_attach_run_command
     Napi::Value Exec(const Napi::CallbackInfo &info);
+    Napi::Value Console(const Napi::CallbackInfo &info);
 
-    Napi::Value Daemonize(const Napi::CallbackInfo &info);
 
     struct lxc_container *_container;
 };

@@ -1,11 +1,10 @@
-import {Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL} from "../index";
-import {openSync} from "fs";
+import {Container, LXC, LXC_CREATE, LXC_LOGLEVEL} from "../lib/bindings";
 
-console.log(`LXC version(${LXC.version})`);
+console.log(`LXC version(${LXC.GetVersion()})`);
 
 
 async function main() {
-    const name = "node-ct2"
+    const name = "node-ct"
 
     const c = new Container(name);
 
@@ -28,16 +27,15 @@ async function main() {
         console.log(process.pid);
     }
 
-
     console.log("started", await c.start(0, ["/sbin/init"]));
-
 
     // console.log("started", await c.start(0, []));
 
 
-    const attach_flags = LXC_ATTACH.DEFAULT;
+    // const attach_flags = LXC_ATTACH.DEFAULT;
 
-    console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags));
+
+    // console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags));
     // console.log("pid:", await c.exec(
     //     false,
     //     -1,
@@ -52,20 +50,20 @@ async function main() {
     //     attach_flags,
     //     ['echo', 'helloworld', '|', 'test.txt']
     // ));
-    console.log("pid:", await c.exec(
-        false,
-        -1,
-        -1,
-        -1,
-        -1,
-        [],
-        [process.stdin.fd, process.stdout.fd, process.stderr.fd],
-        "/",
-        [],
-        [],
-        attach_flags,
-        ['cat', 'test.txt']
-    ));
+    // console.log("pid:", await c.exec(
+    //     false,
+    //     -1,
+    //     -1,
+    //     -1,
+    //     -1,
+    //     [],
+    //     [process.stdin.fd, process.stdout.fd, process.stderr.fd],
+    //     "/",
+    //     [],
+    //     [],
+    //     attach_flags,
+    //     ['cat', 'test.txt']
+    // ));
 
 
 }

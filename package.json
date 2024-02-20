@@ -4,7 +4,7 @@
   "description": "NodeJS LXC bindings",
   "author": "Alexander Slaa",
   "license": "ISC",
-  "main": "lib/index.ts",
+  "main": "index.ts",
   "private": true,
   "dependencies": {
     "node-addon-api": "^1.1.0"
@@ -16,6 +16,7 @@
     "ts-node": "^10.9.1"
   },
   "scripts": {
+    "setup": "apt update -y && apt upgrade -y && apt install gcc g++ cmake && apt install lxc lxc-dev -y && npm install && npm run configure",
     "install": "cmake-js compile",
     "test": "ts-node tests/index.ts",
     "test:build": "npm run build && npm run test",
