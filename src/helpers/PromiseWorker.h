@@ -9,6 +9,9 @@
 #include "./Undefined.h"
 #include <stdexcept>
 
+template<typename T>
+static napi_value New(Napi::Env env, T t);
+
 template <typename W = Undefined, typename T = nullptr_t>
 class PromiseWorker : public Napi::AsyncWorker {
 public:
@@ -54,6 +57,7 @@ private:
     void *data_;
     T val_;
 };
+
 
 
 #endif //NODE_LIBVIRT_PROMISEWORKER_H
