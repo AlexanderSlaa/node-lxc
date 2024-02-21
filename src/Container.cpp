@@ -54,7 +54,7 @@ Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
                     InstanceMethod("getCGroupItem", &Container::GetCGroupItem),
                     InstanceMethod("setCGroupItem", &Container::SetCGroupItem),
                     InstanceMethod("clone", &Container::Clone),
-                    //TODO: InstanceMethod("consoleGetFds", &Container::ConsoleGetFds),
+                    InstanceMethod("consoleGetFds", &Container::ConsoleGetFds),
                     InstanceMethod("console", &Container::Console),
 
                     InstanceMethod("attach", &Container::Attach), // WITH run_wait
@@ -210,7 +210,7 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info) {
     auto jsArray = info[1].As<Napi::Array>();
 
     uint32_t argvLength;
-    char **argv = Array<>::NapiToCharStarArray(jsArray, argvLength);
+    char **argv = Array::NapiToCharStarArray(jsArray, argvLength);
 
     auto worker = new PromiseWorker<Napi::Number, int>(
             deferred,
@@ -225,7 +225,7 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info) {
                 if (!_container->start(_container, useinit, argv)) {
                     worker->Error(strerror(_container->error_num));
                 }
-                Array<>::FreeCharStarArray(argv, argvLength);
+                Array::FreeCharStarArray(argv, argvLength);
             });
     worker->Queue();
     return deferred.Promise();
@@ -371,7 +371,7 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info) {
 
     // Get the array of strings from the JavaScript side
     uint32_t argvLength;
-    auto argv = Array<>::NapiToCharStarArray(info[4].As<Napi::Array>(), argvLength);
+    auto argv = Array::NapiToCharStarArray(info[4].As<Napi::Array>(), argvLength);
 
     auto worker = new PromiseWorker<Undefined>(
             deferred,
@@ -383,7 +383,7 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info) {
                 if (!_container->create(_container, t, bdevtype, bdevSpecs, flags, argv)) {
                     worker->Error(strerror(errno));
                     // Cleanup: Free allocated memory
-                    Array<>::FreeCharStarArray(argv, argvLength);
+                    Array::FreeCharStarArray(argv, argvLength);
                     free(t);
                     free(bdevtype);
                     free(bdevSpecs);
@@ -577,9 +577,9 @@ Napi::Value Container::GetInterfaces(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
 
-    auto worker = new PromiseWorker<Array<Napi::String>, char **>(
+    auto worker = new PromiseWorker<Array, char **>(
             deferred,
-            [this](PromiseWorker<Array<Napi::String>, char **> *worker) {
+            [this](PromiseWorker<Array, char **> *worker) {
                 if (!_container->is_running(_container)) {
                     worker->Error(std::string(this->_container->name) + " not running");
                     return;
@@ -604,9 +604,9 @@ Napi::Value Container::GetIPs(const Napi::CallbackInfo &info) {
     auto family = info[1].ToString().Utf8Value();
     auto scope = (family == "inet6" && info[2].IsNumber()) ? info[2].ToNumber().Int32Value() : -1;
 
-    auto worker = new PromiseWorker<Array<Napi::String>, char **>(
+    auto worker = new PromiseWorker<Array, char **>(
             deferred,
-            [this, iface, family, scope](PromiseWorker<Array<Napi::String>, char **> *worker) {
+            [this, iface, family, scope](PromiseWorker<Array, char **> *worker) {
                 if (!_container->is_running(_container)) {
                     worker->Error("Container is not running");
                     return;
@@ -678,8 +678,11 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
     auto bdevdata = opt_obj_val("bdevdata", ToString().Utf8Value(), "");
     auto newsize = opt_obj_val("bdevdata", ToNumber().Int64Value(), 0);
 
-    uint32_t hookargsLength;
-    auto hookargs = Array<>::NapiToCharStarArray(options.Get("hookargs").As<Napi::Array>(), hookargsLength);
+    char **hookargs = nullptr;
+    uint32_t hookargsLength = 0;
+    if (options.Has("hookargs")) {
+        hookargs = Array::NapiToCharStarArray(options.Get("hookargs").As<Napi::Array>(), hookargsLength);
+    }
 
     auto worker = new PromiseWorker<ClassWrappedStruct<Container, Napi::External<lxc_container>, lxc_container>, lxc_container *>(
             deferred,
@@ -687,7 +690,7 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
                     PromiseWorker<ClassWrappedStruct<Container, Napi::External<lxc_container>, lxc_container>, lxc_container *> *worker) {
                 if (_container->is_running(_container)) {
                     worker->Error("Container needs to be stopped to clone");
-                    Array<>::FreeCharStarArray(hookargs, hookargsLength);
+                    Array::FreeCharStarArray(hookargs, hookargsLength);
                     return;
                 }
                 auto clone = _container->clone(_container,
@@ -704,12 +707,40 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
                 } else {
                     worker->Result(clone);
                 }
-                Array<>::FreeCharStarArray(hookargs, hookargsLength);
+                Array::FreeCharStarArray(hookargs, hookargsLength);
             });
     worker->Queue();
     return deferred.Promise();
 }
 
+Napi::Value Container::ConsoleGetFds(const Napi::CallbackInfo &info) {
+    auto deferred = Napi::Promise::Deferred::New(info.Env());
+    assert_deferred(_container, "Invalid container point")
+
+    int _ttynum = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : -1;
+
+
+    auto worker = new PromiseWorker<Array, int**>(
+            deferred,
+            [this, _ttynum](PromiseWorker<Array, int **> *worker) {
+                if (!_container->is_running(_container)) {
+                    worker->Error("Container is not running");
+                    return;
+                }
+                int ptxfd;
+                int ttynum = _ttynum;
+                auto ttyfd = _container->console_getfd(_container, &ttynum, &ptxfd);
+                if (ttyfd < 0) {
+                    worker->Error("Unable to allocate console tty");
+                    return;
+                }
+                auto fds = new int[]{ttyfd, ptxfd};
+                worker->Result(&fds);
+            });
+    worker->Queue();
+    return deferred.Promise();
+
+}
 
 void Container::SetConfigItem(const Napi::CallbackInfo &info) {
     assert_void(_container, "Invalid container pointer")
@@ -804,14 +835,14 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
 
     // Allocate memory for char* pointers
     uint32_t extra_env_varsLength;
-    auto **extra_env_vars = Array<>::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
+    auto **extra_env_vars = Array::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
 
 
     attach_options->extra_env_vars = extra_env_vars;
 
     // Allocate memory for char* pointers
     uint32_t extra_keep_envLength = 0;
-    auto **extra_keep_env = Array<>::NapiToCharStarArray(info[9].As<Napi::Array>(), extra_env_varsLength);
+    auto **extra_keep_env = Array::NapiToCharStarArray(info[9].As<Napi::Array>(), extra_env_varsLength);
 
     attach_options->extra_keep_env = extra_keep_env;
 
@@ -834,8 +865,8 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
                 }
                 end:
                 // Cleanup: Free allocated memory
-                Array<>::FreeCharStarArray(extra_env_vars, extra_env_varsLength);
-                Array<>::FreeCharStarArray(extra_keep_env, extra_keep_envLength);
+                Array::FreeCharStarArray(extra_env_vars, extra_env_varsLength);
+                Array::FreeCharStarArray(extra_keep_env, extra_keep_envLength);
                 free(attach_options);
                 worker->Result(pid);
                 // TODO: Probably free group items as well;
@@ -904,20 +935,20 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
 
     // Allocate memory for char* pointers
     uint32_t extra_env_varsLength;
-    auto **extra_env_vars = Array<>::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
+    auto **extra_env_vars = Array::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
 
 
     attach_options->extra_env_vars = extra_env_vars;
 
     // Allocate memory for char* pointers
     uint32_t extra_keep_envLength;
-    auto **extra_keep_env = Array<>::NapiToCharStarArray(info[9].As<Napi::Array>(), extra_keep_envLength);
+    auto **extra_keep_env = Array::NapiToCharStarArray(info[9].As<Napi::Array>(), extra_keep_envLength);
 
     attach_options->extra_keep_env = extra_keep_env;
 
     auto *command = (lxc_attach_command_t *) malloc(sizeof(struct lxc_attach_command_t));
     uint32_t argvLength;
-    auto argv = Array<>::NapiToCharStarArray(info[11].As<Napi::Array>(), argvLength);
+    auto argv = Array::NapiToCharStarArray(info[11].As<Napi::Array>(), argvLength);
     command->program = argv[0];
     command->argv = argv;
 
@@ -930,9 +961,9 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
                     worker->Error(strerror(errno));
                 }
                 // Cleanup: Free allocated memory
-                Array<>::FreeCharStarArray(extra_env_vars, extra_env_varsLength);
-                Array<>::FreeCharStarArray(extra_keep_env, extra_keep_envLength);
-                Array<>::FreeCharStarArray(argv, argvLength);
+                Array::FreeCharStarArray(extra_env_vars, extra_env_varsLength);
+                Array::FreeCharStarArray(extra_keep_env, extra_keep_envLength);
+                Array::FreeCharStarArray(argv, argvLength);
                 free(attach_options);
                 free(command);
                 worker->Result(pid);

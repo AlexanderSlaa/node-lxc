@@ -8,12 +8,6 @@
 #include "napi.h"
 #include "./Undefined.h"
 
-template <typename T = Undefined>
-
-/**
- * When Used with PromiseWorker the array is freed at then end of promise execution
- * @tparam T
- */
 class Array
 {
 public:
@@ -28,7 +22,45 @@ public:
             for (int i = 0; values[i] != nullptr; ++i)
             {
                 // Convert each string to a Napi::Object Type and add it to the Napi::Array.
-                strArray[i] = T::New(env, values[i]);
+                strArray[i] = Napi::String::New(env, values[i]);
+            }
+            // Free the memory allocated for the array of strings.
+            free(values);
+        }
+        return strArray;
+    }
+
+    static Napi::Value New(
+        Napi::Env env, ///< N-API environment
+        int **values)
+    {
+        auto strArray = Napi::Array::New(env);
+        if (values != nullptr)
+        {
+            // Iterate over the array of strings obtained.
+            for (int i = 0; values[i] != nullptr; ++i)
+            {
+                // Convert each string to a Napi::Object Type and add it to the Napi::Array.
+                strArray[i] = Napi::Number::New(env, *values[i]);
+            }
+            // Free the memory allocated for the array of strings.
+            free(values);
+        }
+        return strArray;
+    }
+
+    static Napi::Value New(
+        Napi::Env env, ///< N-API environment
+        double **values)
+    {
+        auto strArray = Napi::Array::New(env);
+        if (values != nullptr)
+        {
+            // Iterate over the array of strings obtained.
+            for (int i = 0; values[i] != nullptr; ++i)
+            {
+                // Convert each string to a Napi::Object Type and add it to the Napi::Array.
+                strArray[i] = Napi::Number::New(env, *values[i]);
             }
             // Free the memory allocated for the array of strings.
             free(values);

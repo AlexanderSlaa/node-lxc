@@ -122,6 +122,7 @@ private:
     void SetCGroupItem(const Napi::CallbackInfo &info);
 
     Napi::Value Clone(const Napi::CallbackInfo &info);
+    Napi::Value ConsoleGetFds(const Napi::CallbackInfo &info);
 
 
     // Attach with wait for process lxc_attach_run_shell

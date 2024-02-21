@@ -19,35 +19,33 @@ async function main() {
     c.setConfigItem("lxc.net.0.hwaddr", "00:16:3e:xx:xx:xx");
 
 
-    await c.clone({
-        newname: "node-clone",
-        flags: 0,
-        bdevdata: "",
-        newsize: 0,
-        hookargs: []
-    })
-
-    const keys = await c.getInterfaces();
-
-    const ips = await c.getIPs(keys[0], "inet");
-
-    console.log(keys, ips);
-
-    console.log(c.name);
-
-    c.daemonize = true;
-
-    if (!c.defined) {
-        console.log("created", await c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
-        console.log(process.pid);
-    }
-
-    if (c.running) {
-        await c.reboot(-1);
-    }else{
-        console.log("started", await c.start(0, ["/sbin/init"]));
-
-    }
+    // const clone = await c.clone({
+    //     newname: "node-clone2",
+    // });
+    //
+    // console.log(clone);
+    //
+    // const keys = await c.getInterfaces();
+    //
+    // const ips = await c.getIPs(keys[0], "inet");
+    //
+    // console.log(keys, ips);
+    //
+    // console.log(c.name);
+    //
+    // c.daemonize = true;
+    //
+    // if (!c.defined) {
+    //     console.log("created", await c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
+    //     console.log(process.pid);
+    // }
+    //
+    // if (c.running) {
+    //     await c.reboot(-1);
+    // }else{
+    //     console.log("started", await c.start(0, ["/sbin/init"]));
+    //
+    // }
 
 
     // console.log("started", await c.start(0, []));
