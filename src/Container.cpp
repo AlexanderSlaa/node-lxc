@@ -722,7 +722,7 @@ Napi::Value Container::ConsoleGetFds(const Napi::CallbackInfo &info) {
 
     auto worker = new PromiseWorker<Array, int**>(
             deferred,
-            [this, _ttynum](PromiseWorker<Array, int **> *worker) {
+            [this, &_ttynum](PromiseWorker<Array, int **> *worker) {
                 if (!_container->is_running(_container)) {
                     worker->Error("Container is not running");
                     return;

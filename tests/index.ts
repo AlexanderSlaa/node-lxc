@@ -25,11 +25,11 @@ async function main() {
     //
     // console.log(clone);
     //
-    // const keys = await c.getInterfaces();
+    const keys = await c.getInterfaces();
     //
-    // const ips = await c.getIPs(keys[0], "inet");
+    const ips = await c.getIPs(keys[0], "inet");
     //
-    // console.log(keys, ips);
+    console.log(keys, ips);
     //
     // console.log(c.name);
     //
