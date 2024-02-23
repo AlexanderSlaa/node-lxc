@@ -18,6 +18,8 @@ async function main() {
     c.setConfigItem("lxc.net.0.flags", "up");
     c.setConfigItem("lxc.net.0.hwaddr", "00:16:3e:xx:xx:xx");
 
+    const result = await c.consoleGetFds(0);
+    console.log(result);
 
     // const clone = await c.clone({
     //     newname: "node-clone2",
@@ -25,11 +27,11 @@ async function main() {
     //
     // console.log(clone);
     //
-    const keys = await c.getInterfaces();
+    // const keys = await c.getInterfaces();
     //
-    const ips = await c.getIPs(keys[0], "inet");
+    // const ips = await c.getIPs(keys[0], "inet");
     //
-    console.log(keys, ips);
+    // console.log(keys, ips);
     //
     // console.log(c.name);
     //

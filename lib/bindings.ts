@@ -83,6 +83,7 @@ export type Container = {
     save(alt_file: string): Promise<void>;
 
     clone(options: lxc_clone_options): Promise<Container>;
+    consoleGetFds(ttynum: number): Promise<[number, number]>
 
     getKeys(prefix: string): string[]
     getInterfaces(): Promise<string[]>

@@ -12,7 +12,7 @@
 #include "./helpers/object.h"
 #include "./helpers/ClassWrappedStruct.h"
 #include "./helpers/PromiseWorker.h"
-
+#include "helpers/AsyncPromise.h"
 
 Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
     Napi::Function func =
@@ -25,7 +25,7 @@ Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
                     InstanceAccessor("initPID", &Container::GetInitPID, nullptr),
                     InstanceAccessor("configFileName", &Container::GetConfigFileName, nullptr),
                     InstanceAccessor("daemonize", &Container::GetDaemonize, &Container::SetDaemonize),
-//                    TODO: InstanceAccessor("configPath", &Container::GetConfigPath, Container::SetConfigPath),
+                    //                    TODO: InstanceAccessor("configPath", &Container::GetConfigPath, Container::SetConfigPath),
 
                     /* Instance Methods */
                     InstanceMethod("freeze", &Container::Freeze),
@@ -58,28 +58,28 @@ Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
                     InstanceMethod("console", &Container::Console),
 
                     InstanceMethod("attach", &Container::Attach), // WITH run_wait
-                    //TODO: InstanceMethod("snapshot",  &Container::Snapshot),
-                    //TODO: InstanceMethod("snapshotList",  &Container::SnapshotList),
-                    //TODO: InstanceMethod("snapshotRestore",  &Container::SnapshotRestore),
-                    //TODO: InstanceMethod("snapshotDestroy",  &Container::SnapshotDestroy), //TODO: Add option to destroy all snapshots
-                    //TODO: MAY CONTROL (may_control)???
-                    //TODO: InstanceMethod("addDeviceNode", &Container::AddDeviceNode),
-                    //TODO: InstanceMethod("removeDeviceNode", &Container::RemoveDeviceNode),
-                    //TODO: InstanceMethod("attachInterface", &Container::AttachInterface),
-                    //TODO: InstanceMethod("detachInterface", &Container::DetachInterface),
-                    //TODO: InstanceMethod("checkpoint", &Container::Checkpoint),
-                    //TODO: InstanceMethod("restore", &Container::Restore),
-                    //TODO: InstanceMethod("migrate", &Container::Migrate),
-                    //TODO: InstanceMethod("consoleLog", &Container::ConsoleLog),
-                    //TODO: InstanceMethod("reboot2", &Container::Reboot2),
-                    //TODO: InstanceMethod("mount", &Container::Mount),
-                    //TODO: InstanceMethod("umount", &Container::Umount),
+                    // TODO: InstanceMethod("snapshot",  &Container::Snapshot),
+                    // TODO: InstanceMethod("snapshotList",  &Container::SnapshotList),
+                    // TODO: InstanceMethod("snapshotRestore",  &Container::SnapshotRestore),
+                    // TODO: InstanceMethod("snapshotDestroy",  &Container::SnapshotDestroy), //TODO: Add option to destroy all snapshots
+                    // TODO: MAY CONTROL (may_control)???
+                    // TODO: InstanceMethod("addDeviceNode", &Container::AddDeviceNode),
+                    // TODO: InstanceMethod("removeDeviceNode", &Container::RemoveDeviceNode),
+                    // TODO: InstanceMethod("attachInterface", &Container::AttachInterface),
+                    // TODO: InstanceMethod("detachInterface", &Container::DetachInterface),
+                    // TODO: InstanceMethod("checkpoint", &Container::Checkpoint),
+                    // TODO: InstanceMethod("restore", &Container::Restore),
+                    // TODO: InstanceMethod("migrate", &Container::Migrate),
+                    // TODO: InstanceMethod("consoleLog", &Container::ConsoleLog),
+                    // TODO: InstanceMethod("reboot2", &Container::Reboot2),
+                    // TODO: InstanceMethod("mount", &Container::Mount),
+                    // TODO: InstanceMethod("umount", &Container::Umount),
 
-                    //TODO: THIS MAY NEED TO BE A GETTER
-                    //TODO: InstanceMethod("seccompNotifyFd", &Container::SeccompNotifyFd),
-                    //TODO: InstanceMethod("seccompNotifyFdActive", &Container::SeccompNotifyFdActive),
-                    //TODO: InstanceMethod("initPIDFd", &Container::InitPIDFd),
-                    //TODO: InstanceMethod("devptsFd", &Container::DevptsFd),
+                    // TODO: THIS MAY NEED TO BE A GETTER
+                    // TODO: InstanceMethod("seccompNotifyFd", &Container::SeccompNotifyFd),
+                    // TODO: InstanceMethod("seccompNotifyFdActive", &Container::SeccompNotifyFdActive),
+                    // TODO: InstanceMethod("initPIDFd", &Container::InitPIDFd),
+                    // TODO: InstanceMethod("devptsFd", &Container::DevptsFd),
 
                     InstanceMethod("exec", &Container::Exec),
             });
@@ -112,7 +112,6 @@ Napi::Value Container::GetRunning(const Napi::CallbackInfo &info) {
     assert(_container, "Invalid container pointer")
     return Napi::Boolean::New(info.Env(), _container->is_running(_container));
 }
-
 
 Napi::Value Container::GetInitPID(const Napi::CallbackInfo &info) {
     assert(_container, "Invalid container pointer")
@@ -147,8 +146,6 @@ Container::Container(const Napi::CallbackInfo &info) : Napi::ObjectWrap<Containe
         Napi::Error::New(info.Env(), "Invalid constructor argument").ThrowAsJavaScriptException();
         return;
     }
-
-
 }
 
 Container::~Container() {
@@ -198,7 +195,6 @@ Napi::Value Container::LoadConfig(const Napi::CallbackInfo &info) {
     worker->Queue();
     return deferred.Promise();
 }
-
 
 Napi::Value Container::Start(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
@@ -270,7 +266,6 @@ Napi::Value Container::CloseAllFds(const Napi::CallbackInfo &info) {
     return Napi::Boolean::New(info.Env(), _container->want_close_all_fds(_container, info[0].ToBoolean()));
 }
 
-
 Napi::Value Container::Wait(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
@@ -298,7 +293,6 @@ Napi::Value Container::Wait(const Napi::CallbackInfo &info) {
     return deferred.Promise();
 }
 
-
 Napi::Value Container::Create(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     check_deferred(info.Length() <= 4 || !info[0].IsString() || !info[1].IsString() || !info[2].IsObject() ||
@@ -313,7 +307,7 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info) {
     Napi::Object bdevSpecsObj = info[2].As<Napi::Object>();
     // Extract values from bdevSpecsObj and populate your struct bdev_specs
 
-//region bdev_spect
+    // region bdev_spect
     auto *bdevSpecs = (bdev_specs *) malloc(sizeof(struct bdev_specs));
 
     bdevSpecs->fstype = bdevSpecsObj.Has("fstype") && bdevSpecsObj.Get("fstype").IsString() ? strdup(bdevSpecsObj.Get(
@@ -365,8 +359,8 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info) {
                              ? (char *) strdup(
                     bdevSpecsObj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str())
                              : nullptr;
-//endregion;
-    // Get the creation flags for the container
+    // endregion;
+    //  Get the creation flags for the container
     int flags = info[3].ToNumber().Int32Value();
 
     // Get the array of strings from the JavaScript side
@@ -413,7 +407,6 @@ Napi::Value Container::Reboot(const Napi::CallbackInfo &info) {
     return deferred.Promise();
 }
 
-
 Napi::Value Container::Shutdown(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer");
@@ -436,7 +429,6 @@ Napi::Value Container::Shutdown(const Napi::CallbackInfo &info) {
     return deferred.Promise();
 }
 
-
 Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
@@ -448,8 +440,7 @@ Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
     auto worker = new PromiseWorker<>(
             deferred,
             [this, force, include_snapshots](PromiseWorker<> *worker) {
-
-                //TODO: Check if container has snapshots
+                // TODO: Check if container has snapshots
 
                 if (_container->is_running(_container)) {
                     if (!force) {
@@ -480,7 +471,6 @@ Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
                             }
                             _container = nullptr;
                         }
-
                     }
                 } else {
                     _container = nullptr;
@@ -489,7 +479,6 @@ Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
     worker->Queue();
     return deferred.Promise();
 }
-
 
 Napi::Value Container::Save(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
@@ -507,7 +496,6 @@ Napi::Value Container::Save(const Napi::CallbackInfo &info) {
     worker->Queue();
     return deferred.Promise();
 }
-
 
 Napi::Value Container::GetConfigItem(const Napi::CallbackInfo &info) {
 
@@ -561,7 +549,7 @@ Napi::Value Container::GetKeys(const Napi::CallbackInfo &info) {
         Napi::Error::New(info.Env(), "Key amount mismatch on retrieval").ThrowAsJavaScriptException();
         free(value);
     }
-//region split string /n
+    // region split string /n
     std::string s(value);
     std::stringstream ss(s);
     std::string item;
@@ -569,7 +557,7 @@ Napi::Value Container::GetKeys(const Napi::CallbackInfo &info) {
     while (getline(ss, item, '\n')) {
         keys.Set(index++, Napi::String::New(info.Env(), item));
     }
-//endregion
+    // endregion
     return keys;
 }
 
@@ -644,12 +632,12 @@ Napi::Value Container::GetCGroupItem(const Napi::CallbackInfo &info) {
     return Napi::String::New(info.Env(), value);
 }
 
-
 void Container::SetCGroupItem(const Napi::CallbackInfo &info) {
     assert_void(_container, "Invalid container pointer")
     check_void(info.Length() <= 0 || !info[0].IsString() || !info[1].IsString(), "Invalid arguments")
     assert_void(_container->set_cgroup_item(_container, info[0].ToString().Utf8Value().c_str(),
-                                            info[1].ToString().Utf8Value().c_str()), "Unable to set cgroup value")
+                                            info[1].ToString().Utf8Value().c_str()),
+                "Unable to set cgroup value")
 }
 
 Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
@@ -659,24 +647,23 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
 
     auto options = info[0].ToObject();
 
-    //TODO Update check with optional
-    // check_deferred(
-    //         !(options.Has("newname") && options.Get("newname").IsString()) ||
-    //         !(options.Has("lxcpath") && options.Get("lxcpath").IsString()) ||
-    //         !(options.Has("flags") && options.Get("flags").IsNumber()) ||
-    //         !(options.Has("bdevtype") && options.Get("bdevtype").IsString()) ||
-    //         !(options.Has("bdevdata") && options.Get("bdevdata").IsString()) ||
-    //         !(options.Has("newsize") && options.Get("newsize").IsNumber()) ||
-    //         !(options.Has("hookargs") && options.Get("hookargs").IsArray()),
-    //         "Invalid arguments")
-
+    // TODO Update check with optional
+    //  check_deferred(
+    //          !(options.Has("newname") && options.Get("newname").IsString()) ||
+    //          !(options.Has("lxcpath") && options.Get("lxcpath").IsString()) ||
+    //          !(options.Has("flags") && options.Get("flags").IsNumber()) ||
+    //          !(options.Has("bdevtype") && options.Get("bdevtype").IsString()) ||
+    //          !(options.Has("bdevdata") && options.Get("bdevdata").IsString()) ||
+    //          !(options.Has("newsize") && options.Get("newsize").IsNumber()) ||
+    //          !(options.Has("hookargs") && options.Get("hookargs").IsArray()),
+    //          "Invalid arguments")
 
     auto newname = opt_obj_val("newname", ToString().Utf8Value(), "");
     auto lxcpath = opt_obj_val("lxcpath", ToString().Utf8Value(), "");
     auto flags = opt_obj_val("flags", ToNumber().Int32Value(), 0);
     auto bdevtype = opt_obj_val("bdevtype", ToString().Utf8Value(), "");
     auto bdevdata = opt_obj_val("bdevdata", ToString().Utf8Value(), "");
-    auto newsize = opt_obj_val("bdevdata", ToNumber().Int64Value(), 0);
+    auto newsize = opt_obj_val("newsize", ToNumber().Int64Value(), 0);
 
     char **hookargs = nullptr;
     uint32_t hookargsLength = 0;
@@ -700,8 +687,7 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
                                                (!bdevtype.empty() ? bdevtype.c_str() : nullptr),
                                                (!bdevdata.empty() ? bdevdata.c_str() : nullptr),
                                                newsize,
-                                               hookargs
-                );
+                                               hookargs);
                 if (!clone) {
                     worker->Error("Unable to clone container");
                 } else {
@@ -716,37 +702,41 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
 Napi::Value Container::ConsoleGetFds(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container point")
-
     int _ttynum = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : -1;
 
-
-    auto worker = new PromiseWorker<Array, int**>(
-            deferred,
-            [this, &_ttynum](PromiseWorker<Array, int **> *worker) {
-                if (!_container->is_running(_container)) {
-                    worker->Error("Container is not running");
-                    return;
-                }
-                int ptxfd;
-                int ttynum = _ttynum;
-                auto ttyfd = _container->console_getfd(_container, &ttynum, &ptxfd);
-                if (ttyfd < 0) {
-                    worker->Error("Unable to allocate console tty");
-                    return;
-                }
-                auto fds = new int[]{ttyfd, ptxfd};
-                worker->Result(&fds);
-            });
+    auto worker = new AsyncPromise<int, int>
+            (deferred,
+             [this, _ttynum](AsyncPromise<int, int> *worker) {
+                 if (!_container->is_running(_container)) {
+                     worker->Error("Container is not running");
+                     return;
+                 }
+                 int ttynum = _ttynum;
+                 int ptxfd;
+                 ttynum = _container->console_getfd(_container, &ttynum,
+                                                    &ptxfd); // returns -1 of failure
+                 if (ttynum < 0) {
+                     worker->Error("Unable to allocate console tty");
+                     return;
+                 }
+                 worker->Result(ttynum, ptxfd);
+             },
+             [](AsyncPromise<int, int> *worker, const std::tuple<int, int> &tuple) {
+                 auto array = Napi::Array::New(worker->Env());
+                 array.Set((uint32_t) 0, Napi::Number::New(worker->Env(), std::get<0>(tuple)));
+                 array.Set((uint32_t) 1, Napi::Number::New(worker->Env(), std::get<1>(tuple)));
+                 return array;
+             });
     worker->Queue();
     return deferred.Promise();
-
 }
 
 void Container::SetConfigItem(const Napi::CallbackInfo &info) {
     assert_void(_container, "Invalid container pointer")
     check_void(info.Length() <= 0 || !info[0].IsString() || !info[1].IsString(), "Invalid arguments")
     assert_void(_container->set_config_item(_container, info[0].ToString().Utf8Value().c_str(),
-                                            info[1].ToString().Utf8Value().c_str()), "Unable to set config item")
+                                            info[1].ToString().Utf8Value().c_str()),
+                "Unable to set config item")
 }
 
 void Container::ClearConfigItem(const Napi::CallbackInfo &info) {
@@ -837,7 +827,6 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
     uint32_t extra_env_varsLength;
     auto **extra_env_vars = Array::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
 
-
     attach_options->extra_env_vars = extra_env_vars;
 
     // Allocate memory for char* pointers
@@ -889,8 +878,8 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
                    !info[7].IsString() ||  // CWD
                    !info[8].IsArray() ||   // ENV
                    !info[9].IsArray() ||   // KEEP_ENV
-                   !info[10].IsNumber() ||    // FLAGS
-                   !info[11].IsArray(),   // ARGV
+                   !info[10].IsNumber() || // FLAGS
+                   !info[11].IsArray(),    // ARGV
                    "Invalid arguments")
 
     auto *attach_options = (lxc_attach_options_t *) malloc(sizeof(struct lxc_attach_options_t));
@@ -937,7 +926,6 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
     uint32_t extra_env_varsLength;
     auto **extra_env_vars = Array::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
 
-
     attach_options->extra_env_vars = extra_env_vars;
 
     // Allocate memory for char* pointers
@@ -971,7 +959,6 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
     worker->Queue();
     return deferred.Promise();
 }
-
 
 Napi::Value Container::Console(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
@@ -1010,6 +997,3 @@ Napi::Object Container::New(Napi::Env env, const std::initializer_list<napi_valu
     Napi::Object obj = env.GetInstanceData<Napi::FunctionReference>()->New(args);
     return scope.Escape(napi_value(obj)).ToObject();
 }
-
-
-

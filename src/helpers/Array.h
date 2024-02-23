@@ -15,57 +15,19 @@ public:
         Napi::Env env, ///< N-API environment
         char **values)
     {
-        auto strArray = Napi::Array::New(env);
+        auto array = Napi::Array::New(env);
         if (values != nullptr)
         {
             // Iterate over the array of strings obtained.
             for (int i = 0; values[i] != nullptr; ++i)
             {
                 // Convert each string to a Napi::Object Type and add it to the Napi::Array.
-                strArray[i] = Napi::String::New(env, values[i]);
+                array[i] = Napi::String::New(env, values[i]);
             }
             // Free the memory allocated for the array of strings.
             free(values);
         }
-        return strArray;
-    }
-
-    static Napi::Value New(
-        Napi::Env env, ///< N-API environment
-        int **values)
-    {
-        auto strArray = Napi::Array::New(env);
-        if (values != nullptr)
-        {
-            // Iterate over the array of strings obtained.
-            for (int i = 0; values[i] != nullptr; ++i)
-            {
-                // Convert each string to a Napi::Object Type and add it to the Napi::Array.
-                strArray[i] = Napi::Number::New(env, *values[i]);
-            }
-            // Free the memory allocated for the array of strings.
-            free(values);
-        }
-        return strArray;
-    }
-
-    static Napi::Value New(
-        Napi::Env env, ///< N-API environment
-        double **values)
-    {
-        auto strArray = Napi::Array::New(env);
-        if (values != nullptr)
-        {
-            // Iterate over the array of strings obtained.
-            for (int i = 0; values[i] != nullptr; ++i)
-            {
-                // Convert each string to a Napi::Object Type and add it to the Napi::Array.
-                strArray[i] = Napi::Number::New(env, *values[i]);
-            }
-            // Free the memory allocated for the array of strings.
-            free(values);
-        }
-        return strArray;
+        return array;
     }
 
     static char **NapiToCharStarArray(const Napi::Array &jsArray, uint32_t &length)
