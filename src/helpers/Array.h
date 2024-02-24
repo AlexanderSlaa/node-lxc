@@ -8,19 +8,15 @@
 #include "napi.h"
 #include "./Undefined.h"
 
-class Array
-{
+class Array {
 public:
     static Napi::Value New(
-        Napi::Env env, ///< N-API environment
-        char **values)
-    {
+            Napi::Env env, ///< N-API environment
+            char **values) {
         auto array = Napi::Array::New(env);
-        if (values != nullptr)
-        {
+        if (values != nullptr) {
             // Iterate over the array of strings obtained.
-            for (int i = 0; values[i] != nullptr; ++i)
-            {
+            for (int i = 0; values[i] != nullptr; ++i) {
                 // Convert each string to a Napi::Object Type and add it to the Napi::Array.
                 array[i] = Napi::String::New(env, values[i]);
             }
@@ -30,18 +26,16 @@ public:
         return array;
     }
 
-    static char **NapiToCharStarArray(const Napi::Array &jsArray, uint32_t &length)
-    {
-        if (!jsArray)
-        {
+    static char **NapiToCharStarArray(const Napi::Array &jsArray, uint32_t &length) {
+        if (!jsArray) {
+            length = 0;
             return new char *[]
-            { nullptr };
+                    {nullptr};
         }
         length = jsArray.Length();
         char **argv = new char *[length + 1]; // +1 for NULL terminator
 
-        for (uint32_t i = 0; i < length; ++i)
-        {
+        for (uint32_t i = 0; i < length; ++i) {
             std::string str = jsArray.Get(i).As<Napi::String>();
             argv[i] = new char[str.length() + 1];
             strcpy(argv[i], str.c_str());
@@ -51,13 +45,11 @@ public:
         return argv;
     }
 
-    static char **NapiToCharStarArray(const Napi::Array &jsArray)
-    {
+    static char **NapiToCharStarArray(const Napi::Array &jsArray) {
         auto length = jsArray.Length();
         char **argv = new char *[length + 1]; // +1 for NULL terminator
 
-        for (uint32_t i = 0; i < length; ++i)
-        {
+        for (uint32_t i = 0; i < length; ++i) {
             std::string str = jsArray.Get(i).As<Napi::String>();
             argv[i] = new char[str.length() + 1];
             strcpy(argv[i], str.c_str());
@@ -67,10 +59,11 @@ public:
         return argv;
     }
 
-    static void FreeCharStarArray(char **argv, uint32_t length)
-    {
-        for (uint32_t i = 0; i < length; ++i)
-        {
+    static void FreeCharStarArray(char **argv, uint32_t length) {
+        if (!argv) {
+            return;
+        }
+        for (uint32_t i = 0; i < length; ++i) {
             delete[] argv[i];
         }
         delete[] argv;

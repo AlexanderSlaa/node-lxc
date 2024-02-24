@@ -88,6 +88,9 @@ private:
     Napi::Value GetDaemonize(const Napi::CallbackInfo &info);
     void SetDaemonize(const Napi::CallbackInfo &info, const Napi::Value &value);
 
+    Napi::Value GetConfigPath(const Napi::CallbackInfo &info);
+    void SetConfigPath(const Napi::CallbackInfo &info, const Napi::Value &value);
+
 
     Napi::Value GetDefined(const Napi::CallbackInfo &info);
 
@@ -100,7 +103,7 @@ private:
     Napi::Value Stop(const Napi::CallbackInfo &info);
 
 
-    Napi::Value CloseAllFds(const Napi::CallbackInfo &info);
+    Napi::Value WantCloseAllFds(const Napi::CallbackInfo &info);
     Napi::Value Wait(const Napi::CallbackInfo &info);
     void SetConfigItem(const Napi::CallbackInfo &info);
     Napi::Value Destroy(const Napi::CallbackInfo &info);
@@ -123,6 +126,28 @@ private:
 
     Napi::Value Clone(const Napi::CallbackInfo &info);
     Napi::Value ConsoleGetFds(const Napi::CallbackInfo &info);
+    Napi::Value Snapshot(const Napi::CallbackInfo &info);
+    Napi::Value SnapshotList(const Napi::CallbackInfo &info);
+    Napi::Value SnapshotRestore(const Napi::CallbackInfo &info);
+    Napi::Value SnapshotDestroy(const Napi::CallbackInfo &info);
+
+    Napi::Value AddDeviceNode(const Napi::CallbackInfo &info);
+    Napi::Value RemoveDeviceNode(const Napi::CallbackInfo &info);
+    Napi::Value AttachInterface(const Napi::CallbackInfo &info);
+    Napi::Value DetachInterface(const Napi::CallbackInfo &info);
+
+    Napi::Value Checkpoint(const Napi::CallbackInfo &info);
+    Napi::Value Restore(const Napi::CallbackInfo &info);
+    Napi::Value Migrate(const Napi::CallbackInfo &info);
+
+    Napi::Value ConsoleLog(const Napi::CallbackInfo &info);
+//    Napi::Value Reboot2(const Napi::CallbackInfo &info);
+    Napi::Value Mount(const Napi::CallbackInfo &info);
+    Napi::Value Umount(const Napi::CallbackInfo &info);
+    Napi::Value SeccompNotifyFd(const Napi::CallbackInfo &info);
+    Napi::Value SeccompNotifyFdActive(const Napi::CallbackInfo &info);
+    Napi::Value InitPIDFd(const Napi::CallbackInfo &info);
+    Napi::Value DevptsFd(const Napi::CallbackInfo &info);
 
 
     // Attach with wait for process lxc_attach_run_shell

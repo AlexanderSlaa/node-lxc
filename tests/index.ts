@@ -1,10 +1,10 @@
-import {Container, LXC, LXC_CREATE, LXC_LOGLEVEL} from "../lib/bindings";
+import { Container, LXC, LXC_CREATE, LXC_LOGLEVEL } from "../lib/bindings";
 
 console.log(`LXC version(${LXC.GetVersion()})`);
 
 
 async function main() {
-    const name = "node-ct"
+    const name = "node-clone2"
 
     const c = new Container(name);
 
@@ -18,8 +18,12 @@ async function main() {
     c.setConfigItem("lxc.net.0.flags", "up");
     c.setConfigItem("lxc.net.0.hwaddr", "00:16:3e:xx:xx:xx");
 
-    const result = await c.consoleGetFds(0);
-    console.log(result);
+    await c.destroy({ include_snapshots: false, force: true });
+    console.log("destroyed");
+    console.log("started", await c.start(0, ["/sbin/init"]));
+
+    // const result = await c.consoleGetFds(0);
+    // console.log(result);
 
     // const clone = await c.clone({
     //     newname: "node-clone2",

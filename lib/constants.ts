@@ -122,6 +122,16 @@ export enum LXC_ATTACH {
     DEFAULT = 0x0000FFFF
 }
 
+export enum LXC_MIGRATE{
+    MIGRATE_PRE_DUMP = 0,
+    MIGRATE_DUMP = 1,
+    MIGRATE_RESTORE = 2,
+    MIGRATE_FEATURE_CHECK = 3,
+}
+export enum LXC_MOUNT{
+    V1 = 0
+}
+
 export const DEFAULT_ATTACH: lxc_attach_options = {
     namespaces: -1,
     personality: -1,

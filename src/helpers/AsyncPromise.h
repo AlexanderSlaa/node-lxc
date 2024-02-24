@@ -22,31 +22,54 @@ public:
         return worker->Env().Null();
     }
 
-    static Napi::Value StringWrapper(AsyncPromise *worker, const std::tuple<std::string> &tuple) {
+    static Napi::String StdStringWrapper(AsyncPromise<std::string> *worker, const std::tuple<std::string> &tuple) {
         return Napi::String::New(worker->Env(), std::get<0>(tuple));
     }
 
-    static Napi::Value StringWrapper(AsyncPromise *worker, const std::tuple<char *> &tuple) {
+    static Napi::Array StringArrayWrapper(AsyncPromise<char **> *worker, const std::tuple<char **> &tuple) {
+        auto array = Napi::Array::New(worker->Env());
+        auto values = std::get<0>(tuple);
+        if (values != nullptr) {
+            // Iterate over the array of strings obtained.
+            for (int i = 0; values[i] != nullptr; ++i) {
+                // Convert each string to a Napi::Object Type and add it to the Napi::Array.
+                array[i] = Napi::String::New(worker->Env(), values[i]);
+            }
+            // Free the memory allocated for the array of strings.
+            free(values);
+        }
+        return array;
+    }
+
+    static Napi::String CharStringWrapper(AsyncPromise<char *> *worker, const std::tuple<char *> &tuple) {
         return Napi::String::New(worker->Env(), std::get<0>(tuple));
     }
 
-    static Napi::Value NumberWrapper(AsyncPromise *worker, const std::tuple<double> &tuple) {
+    static Napi::String SizeCharStringWrapper(AsyncPromise<char *, size_t> *worker, const std::tuple<char *, size_t> &tuple) {
+        return Napi::String::New(worker->Env(), std::get<0>(tuple), std::get<1>(tuple));
+    }
+
+    static Napi::Number NumberWrapper(AsyncPromise *worker, const std::tuple<Args...> &tuple) {
         return Napi::Number::New(worker->Env(), std::get<0>(tuple));
     }
 
-    static Napi::Value NumberWrapper(AsyncPromise *worker, const std::tuple<int> &tuple) {
-        return Napi::Number::New(worker->Env(), std::get<0>(tuple));
-    }
-
-    static Napi::Value NumberWrapper(AsyncPromise *worker, const std::tuple<float> &tuple) {
-        return Napi::Number::New(worker->Env(), std::get<0>(tuple));
-    }
-
-    static Napi::Value BooleanWrapper(AsyncPromise *worker, const std::tuple<bool> &tuple) {
+    static Napi::Boolean BooleanWrapper(AsyncPromise *worker, const std::tuple<bool> &tuple) {
         return Napi::Boolean::New(worker->Env(), std::get<0>(tuple));
     }
 
 public:
+    AsyncPromise(
+            Napi::Env &env,
+            std::function<void(AsyncPromise<Args...> *)> &&asyncFunction,
+            std::function<Napi::Value(AsyncPromise<Args...> *, std::tuple<Args...>)> &&valueWrapper,
+            void *data = nullptr
+    ) :
+            Napi::AsyncWorker(env),
+            deferred_(Napi::Promise::Deferred::New(env)),
+            asyncFunction_(std::move(asyncFunction)),
+            valueWrapper_(std::move(valueWrapper)),
+            data_(data) {}
+
     AsyncPromise(
             const Napi::Promise::Deferred &deferred,
             std::function<void(AsyncPromise<Args...> *)> &&asyncFunction,
