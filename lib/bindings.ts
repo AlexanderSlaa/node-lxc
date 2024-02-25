@@ -48,7 +48,7 @@ export type Container = {
     get configPath(): string;
     set configPath(value: string);
 
-    new(name: string, configPath?: string): Container;
+    new(name: string, configPath?: string, alt_file?: string): Container;
 
     freeze(): Promise<void>;
     unfreeze(): Promise<void>;
@@ -59,7 +59,20 @@ export type Container = {
     stop(): Promise<void>;
 
     wantCloseAllFds(): Promise<void>;
-    wait(state: ContainerState, timeout: number): Promise<void>;
+    /**
+     * Wait for a container to be in a specified state
+     * @param state {ContainerState}
+     * @param timeout {number} default: -1
+     * @returns {Promise<void>} When resolved the container is the specified state, when rejected the container wait timed-out or an error occurred
+     */
+    wait(state: ContainerState, timeout?: number): Promise<void>;
+    /**
+     *
+     * @param key {string} config key
+     * @param value {string} config value
+     * @example
+     * c.setConfigItem('lxc.log.file', '/tmp/logs/ct2.log');
+     */
     setConfigItem(key: string, value: string): void;
     destroy(options?: { include_snapshots?: boolean, force?: boolean }): Promise<void>
     /**
@@ -73,14 +86,15 @@ export type Container = {
      *
      * @param timeout Seconds to wait before returning false.
      * (-1 to wait forever, 0 to avoid waiting).
+     * default: -1 (forever)
      */
-    reboot(timeout: number): Promise<boolean>; //TODO Implement reboot send
+    reboot(timeout?: number): Promise<boolean>; //TODO Implement reboot send
     /**
      * Request the container shutdown by sending it `SIGPWR`.
-     * @param timeout Seconds to wait before returning false.
-     * (-1 to wait forever, 0 to avoid waiting).
+     * @param timeout Seconds to wait before rejecting (-1 to wait forever, 0 to avoid waiting).
+     * default: -1 (forever)
      */
-    shutdown(timeout: number): Promise<boolean>;
+    shutdown(timeout?: number): Promise<boolean>;
     clearConfig(): void;
     clearConfigItem(key: string): void;
     getConfigItem(key: string): string;
@@ -120,16 +134,15 @@ export type Container = {
     devptsFd(): Promise<number>
 
     exec(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number, argv: string[]): Promise<number>;
-
-
 }
+
 
 //endregion
 
 export type LXC = {
     GetVersion(): string,
     GetGlobalConfigItem(key: string): string
-    ListAllContainer(lxcpath?: string): string[],
+    ListAllContainers(lxcpath?: string): string[],
     ListAllDefinedContainer(lxcpath?: string): string[],
     ListAllActiveContainers(lxcpath?: string): string[],
     Container: Container
