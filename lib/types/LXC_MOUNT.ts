@@ -1,4 +1,6 @@
-import {LXC_MOUNT} from "../constants";
+export enum LXC_MOUNT{
+    V1 = 0
+}
 
 export type lxc_mount = {
     /**

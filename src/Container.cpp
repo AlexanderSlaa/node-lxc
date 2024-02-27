@@ -6,10 +6,8 @@
 
 #include <sys/wait.h>
 #include <sstream>
-#include "./helpers/check.h"
-#include "./helpers/assert.h"
 #include "./helpers/Array.h"
-#include "./helpers/object.h"
+#include "./helpers/helpers.h"
 #include "./helpers/AsyncPromise.h"
 
 Napi::Object Container::Init(Napi::Env env, Napi::Object exports) {
@@ -167,8 +165,7 @@ Napi::Value Container::Freeze(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 Napi::Value Container::Unfreeze(const Napi::CallbackInfo &info) {
@@ -180,8 +177,7 @@ Napi::Value Container::Unfreeze(const Napi::CallbackInfo &info) {
             return;
         }
     });
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 Napi::Value Container::LoadConfig(const Napi::CallbackInfo &info) {
@@ -195,14 +191,12 @@ Napi::Value Container::LoadConfig(const Napi::CallbackInfo &info) {
             return;
         }
     });
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 Napi::Value Container::Start(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
-    //    check_deferred(info.Length() <= 0 || !info[0].IsNumber() || !info[1].IsArray(), "Invalid arguments")
 
     // Get the array of strings from the JavaScript side
     auto useinit = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : 0;
@@ -229,8 +223,7 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info) {
                 Array::FreeCharStarArray(argv, argvLength);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 Napi::Value Container::Stop(const Napi::CallbackInfo &info) {
@@ -249,8 +242,7 @@ Napi::Value Container::Stop(const Napi::CallbackInfo &info) {
             return;
         }
     });
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 void Container::SetDaemonize(const Napi::CallbackInfo &info, const Napi::Value &value) {
@@ -302,109 +294,107 @@ Napi::Value Container::Wait(const Napi::CallbackInfo &info) {
                     worker->Error("Container timed out");
                 }
             });
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 Napi::Value Container::Create(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
-    check_deferred(info.Length() <= 4 || !info[0].IsString() || !info[1].IsString() || !info[2].IsObject() ||
-                   !info[3].IsNumber() || !info[4].IsArray(),
-                   "Invalid arguments")
+    check_deferred(info.Length() <= 0 || !info[0].IsObject(), "Invalid arguments")
+
+    auto options = info[0].ToObject();
 
     // Parse container creation parameters
-    char *t = info[0].IsString() ? strdup(info[0].ToString().Utf8Value().c_str()) : nullptr;
-    char *bdevtype = info[1].IsString() ? strdup(info[1].ToString().Utf8Value().c_str()) : nullptr;
+    auto template_ = opt_obj_val("template", ToString().Utf8Value(), "none");
+    auto bdevtype = opt_obj_val("bdevtype", ToString().Utf8Value(), "dir");
 
-    // Handle struct bdev_specs (assuming it's an object with specific properties)
-    auto bdevSpecsObj = info[2].As<Napi::Object>();
-    // Extract values from bdevSpecsObj and populate your struct bdev_specs
+    // create bdev_spec struct properties
+    std::string bdev_spec_fstype;
+    uint64_t bdev_spec_fssize = 0;
+    std::string bdev_spec_zfs_zfsroot;
+    std::string bdev_spec_lvm_vg;
+    std::string bdev_spec_lvm_lv;
+    std::string bdev_spec_lvm_thinpool;
+    std::string bdev_spec_dir;
+    std::string bdev_spec_rbd_rbdname;
+    std::string bdev_spec_rbd_rbdpool;
 
-    // region bdev_spect
-    auto *bdevSpecs = (bdev_specs *) malloc(sizeof(struct bdev_specs));
-
-    bdevSpecs->fstype = bdevSpecsObj.Has("fstype") && bdevSpecsObj.Get("fstype").IsString() ? strdup(bdevSpecsObj.Get(
-                    "fstype")
-                                                                                                             .ToString()
-                                                                                                             .Utf8Value()
-                                                                                                             .c_str())
-                                                                                            : nullptr;
-    bdevSpecs->fssize = bdevSpecsObj.Has("fssize") && bdevSpecsObj.Get("fstype").IsNumber()
-                        ? static_cast<uint64_t>(bdevSpecsObj.Get(
-                            "fssize")
-                    .ToNumber()
-                    .Int64Value())
-                        : 0;
-    bdevSpecs->zfs.zfsroot = bdevSpecsObj.Has("zfs") && bdevSpecsObj.Get("zfs").IsObject() &&
-                             bdevSpecsObj.Get("zfs").ToObject().Has("zfsroot")
-                             ? (char *) strdup(
-                    bdevSpecsObj.Get("zfs").ToObject().Get("zfsroot").ToString().Utf8Value().c_str())
-                             : nullptr;
-
-    bdevSpecs->lvm.vg = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
-                        bdevSpecsObj.Get("lvm").ToObject().Has("vg")
-                        ? (char *) strdup(bdevSpecsObj.Get("lvm").ToObject().Get("vg").ToString().Utf8Value().c_str())
-                        : nullptr;
-
-    bdevSpecs->lvm.lv = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
-                        bdevSpecsObj.Get("lvm").ToObject().Has("lv")
-                        ? (char *) strdup(bdevSpecsObj.Get("lvm").ToObject().Get("lv").ToString().Utf8Value().c_str())
-                        : nullptr;
-
-    bdevSpecs->lvm.thinpool = bdevSpecsObj.Has("lvm") && bdevSpecsObj.Get("lvm").IsObject() &&
-                              bdevSpecsObj.Get("lvm").ToObject().Has("thinpool")
-                              ? (char *) strdup(
-                    bdevSpecsObj.Get("lvm").ToObject().Get("thinpool").ToString().Utf8Value().c_str())
-                              : nullptr;
-
-    bdevSpecs->dir = bdevSpecsObj.Has("dir") && bdevSpecsObj.Get("dir").IsString() ? (char *) strdup(
-            bdevSpecsObj.Get("dir").ToString().Utf8Value().c_str())
-                                                                                   : nullptr;
-
-    bdevSpecs->rbd.rbdname = bdevSpecsObj.Has("rbd") && bdevSpecsObj.Get("rbd").IsObject() &&
-                             bdevSpecsObj.Get("rbd").ToObject().Has("rbdname")
-                             ? (char *) strdup(
-                    bdevSpecsObj.Get("rdb").ToObject().Get("rbdname").ToString().Utf8Value().c_str())
-                             : nullptr;
-
-    bdevSpecs->rbd.rbdpool = bdevSpecsObj.Has("rbd") && bdevSpecsObj.Get("rbd").IsObject() &&
-                             bdevSpecsObj.Get("rbd").ToObject().Has("rbdpool")
-                             ? (char *) strdup(
-                    bdevSpecsObj.Get("rdb").ToObject().Get("rbdpool").ToString().Utf8Value().c_str())
-                             : nullptr;
-    // endregion;
+    if (opt_has_val_checked("bdev_specs", IsObject())) {
+        auto bdevSpecsObj = options.Get("bdev_specs").ToObject();
+        obj_has_val_checked_assign(bdevSpecsObj, "fstype", IsString(), ToString(), bdev_spec_fstype)
+        /* fssize can be a number or a bigint if number larger than int64 aka uint64*/
+        obj_has_val_checked_assign(bdevSpecsObj, "fssize", IsNumber(), ToNumber().Int64Value(), bdev_spec_fssize)
+        obj_has_val_checked_assign(bdevSpecsObj, "fssize", IsBigInt(), As<Napi::BigInt>().Uint64Value(nullptr),
+                                   bdev_spec_fssize)
+        obj_has_val_checked_assign(bdevSpecsObj, "fstype", IsString(), ToString(), bdev_spec_fstype)
+        /* zfs specs */
+        auto bdev_spec_zfs = bdevSpecsObj.Get("zfs").ToObject();
+        obj_has_val_checked_assign(bdev_spec_zfs, "zfsroot", IsString(), ToString(), bdev_spec_dir)
+        /* lvm specs */
+        auto bdev_spec_lvm = bdevSpecsObj.Get("lvm").ToObject();
+        obj_has_val_checked_assign(bdev_spec_lvm, "vg", IsString(), ToString(), bdev_spec_lvm_vg)
+        obj_has_val_checked_assign(bdev_spec_lvm, "lv", IsString(), ToString(), bdev_spec_lvm_lv)
+        obj_has_val_checked_assign(bdev_spec_lvm, "thinpool", IsString(), ToString(), bdev_spec_lvm_vg)
+        /* dir property */
+        obj_has_val_checked_assign(bdevSpecsObj, "dir", IsString(), ToString(), bdev_spec_dir)
+        /* rbd specs */
+        auto bdev_spec_rbd = bdevSpecsObj.Get("zfs").ToObject();
+        obj_has_val_checked_assign(bdev_spec_rbd, "rbdname", IsString(), ToString(), bdev_spec_rbd_rbdname)
+        obj_has_val_checked_assign(bdev_spec_rbd, "rbdpool", IsString(), ToString(), bdev_spec_rbd_rbdname)
+    }
     //  Get the creation flags for the container
-    int flags = info[3].ToNumber().Int32Value();
+    int flags = opt_obj_val("flags", ToNumber().Int32Value(), LXC_CREATE_QUIET);
 
     // Get the array of strings from the JavaScript side
-    uint32_t argvLength;
-    auto argv = Array::NapiToCharStarArray(info[4].As<Napi::Array>(), argvLength);
+    uint32_t argvLength = 0;
+    char **argv = nullptr;
+    if (opt_has_val_checked("argv", IsArray())) {
+        argv = Array::NapiToCharStarArray(info[0].ToObject().Get("argv").As<Napi::Array>(), argvLength);
+    }
 
     auto worker = new AsyncPromise<>(
             deferred,
-            [this, t, argv, argvLength, bdevtype, bdevSpecs, flags](AsyncPromise<> *worker) {
+            [this, template_, bdevtype, flags, argv, argvLength, bdev_spec_fstype, bdev_spec_fssize, bdev_spec_zfs_zfsroot, bdev_spec_lvm_lv, bdev_spec_lvm_vg, bdev_spec_lvm_thinpool, bdev_spec_dir, bdev_spec_rbd_rbdname, bdev_spec_rbd_rbdpool](
+                    AsyncPromise<> *worker) {
                 if (_container->is_defined(_container)) {
                     worker->Error("Container already exits");
                     return;
                 }
-                if (!_container->create(_container, t, bdevtype, bdevSpecs, flags, argv)) {
+                bdev_specs specs{
+                        .fstype= const_cast<char *>(bdev_spec_fstype.empty() ? nullptr
+                                                                             : bdev_spec_fstype.c_str()),
+                        .fssize = bdev_spec_fssize,
+                        .zfs{
+                                .zfsroot = const_cast<char *>(bdev_spec_zfs_zfsroot.empty() ? nullptr
+                                                                                            : bdev_spec_zfs_zfsroot.c_str()),
+                        },
+                        .lvm{
+                                .vg=const_cast<char *>(bdev_spec_lvm_vg.empty() ? nullptr : bdev_spec_lvm_vg.c_str()),
+                                .lv=const_cast<char *>(bdev_spec_lvm_lv.empty() ? nullptr : bdev_spec_lvm_lv.c_str()),
+                                .thinpool=const_cast<char *>(bdev_spec_lvm_thinpool.empty() ? nullptr
+                                                                                            : bdev_spec_lvm_thinpool.c_str()),
+                        },
+                        .dir= const_cast<char *>(bdev_spec_dir.empty() ? nullptr
+                                                                       : bdev_spec_dir.c_str()),
+                        .rbd{
+                                .rbdname=const_cast<char *>(bdev_spec_rbd_rbdname.empty() ? nullptr
+                                                                                          : bdev_spec_lvm_vg.c_str()),
+                                .rbdpool=const_cast<char *>(bdev_spec_rbd_rbdpool.empty() ? nullptr
+                                                                                          : bdev_spec_rbd_rbdpool.c_str()),
+                        }
+                };
+                if (!_container->create(_container, template_.c_str(), bdevtype.c_str(), &specs, flags, argv)) {
                     worker->Error(strerror(errno));
-                    // TODO: Cleanup: Free allocated memory
-                    Array::FreeCharStarArray(argv, argvLength);
-                    free(t);
-                    free(bdevtype);
-                    free(bdevSpecs);
                 }
+                Array::FreeCharStarArray(argv, argvLength);
             });
-    worker->Queue();
-    return deferred.Promise();
+    return worker->Promise();
 }
 
 Napi::Value Container::Reboot(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
-//    check_deferred(info.Length() <= 0 || !info[0].IsNumber(), "Invalid arguments")
-    auto timeout = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : -1;
+
+    auto timeout = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : -1; // Default -1 wait forever
 
     auto worker = new AsyncPromise<>(deferred, [this, timeout](AsyncPromise<> *worker) {
         if (!this->_container->is_running(_container)) {
@@ -415,16 +405,15 @@ Napi::Value Container::Reboot(const Napi::CallbackInfo &info) {
             worker->Error("Container reboot timed out");
         }
     });
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::Shutdown(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
-//    check_deferred(info.Length() <= 0 || !info[0].IsNumber(), "Invalid arguments")
 
-    auto timeout = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : -1;
+    auto timeout = info[0].IsNumber() ? info[0].ToNumber().Int32Value() : -1; // Default -1 wait forever
 
     auto worker = new AsyncPromise<>(
             deferred,
@@ -437,8 +426,8 @@ Napi::Value Container::Shutdown(const Napi::CallbackInfo &info) {
                     worker->Error("Container shutdown timed out");
                 }
             });
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
@@ -490,8 +479,8 @@ Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
                     _container = nullptr;
                 }
             });
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::Save(const Napi::CallbackInfo &info) {
@@ -510,8 +499,8 @@ Napi::Value Container::Save(const Napi::CallbackInfo &info) {
                 }
             });
 
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::GetConfigItem(const Napi::CallbackInfo &info) {
@@ -596,8 +585,8 @@ Napi::Value Container::GetInterfaces(const Napi::CallbackInfo &info) {
                 worker->Result(interfaces);
             },
             AsyncPromise<char **>::StringArrayWrapper);
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::GetIPs(const Napi::CallbackInfo &info) {
@@ -624,8 +613,8 @@ Napi::Value Container::GetIPs(const Napi::CallbackInfo &info) {
                 worker->Result(interfaces);
             },
             AsyncPromise<char **>::StringArrayWrapper);
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::GetCGroupItem(const Napi::CallbackInfo &info) {
@@ -717,8 +706,8 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
                 return Container::New(worker->Env(),
                                       {Napi::External<lxc_container>::New(worker->Env(), std::get<0>(c))});
             });
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::ConsoleGetFds(const Napi::CallbackInfo &info) {
@@ -749,8 +738,8 @@ Napi::Value Container::ConsoleGetFds(const Napi::CallbackInfo &info) {
                 array.Set((uint32_t) 1, Napi::Number::New(worker->Env(), std::get<1>(tuple)));
                 return array;
             });
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 void Container::SetConfigItem(const Napi::CallbackInfo &info) {
@@ -791,78 +780,67 @@ int wait_for_pid_status(pid_t pid) {
 Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
-    check_deferred(info.Length() <= 0 ||
-                   !info[0].IsBoolean() || // CLEAN_ENV
-                   !info[1].IsNumber() ||  // NAMESPACE
-                   !info[2].IsNumber() ||  // PERSIONALITY
-                   !info[3].IsNumber() ||  // UID
-                   !info[4].IsNumber() ||  // GUID
-                   !info[5].IsArray() ||   // GROUPS
-                   !info[6].IsArray() ||   // STDIO
-                   !info[7].IsString() ||  // CWD
-                   !info[8].IsArray() ||   // ENV
-                   !info[9].IsArray() ||   // KEEP_ENV
-                   !info[10].IsNumber(),   // FLAGS
-                   "Invalid arguments")
 
-    auto *attach_options = (lxc_attach_options_t *) malloc(sizeof(struct lxc_attach_options_t));
-    attach_options->attach_flags = info[10].ToNumber().Int32Value();
+    lxc_attach_options_t attach_options = LXC_ATTACH_OPTIONS_DEFAULT;
 
-    attach_options->env_policy = LXC_ATTACH_KEEP_ENV;
-    if (info[0].ToBoolean()) {
-        attach_options->env_policy = LXC_ATTACH_CLEAR_ENV;
-    }
-
-    attach_options->namespaces = info[1].ToNumber().Int32Value();
-    attach_options->personality = info[2].ToNumber().Int32Value();
-
-    attach_options->uid = info[3].ToNumber().Int32Value();
-    attach_options->gid = info[4].ToNumber().Int32Value();
-#if VERSION_AT_LEAST(4, 0, 9)
-    auto groups_array = info[5].As<Napi::Array>();
-    size_t groups_array_len = groups_array.Length();
-    lxc_groups_t groups = {
-            .size = groups_array_len,
-            .list = groups_array_len > 0 ? new gid_t[groups_array_len] : nullptr};
-    if (groups.list != nullptr) {
-        for (size_t i = 0; i < groups_array_len; ++i) {
-            groups_array[i] = strdup(groups_array.Get(i).ToString().Utf8Value().c_str());
-        }
-    }
-
-    if (groups.size > 0) {
-        attach_options->groups = groups;
-        attach_options->attach_flags &= LXC_ATTACH_SETGROUPS;
-    }
-#endif
-
-    attach_options->stdin_fd = info[6].As<Napi::Array>().Get((uint32_t) 0).ToNumber().Int32Value(); // STDINFD
-    attach_options->stdout_fd = info[6].As<Napi::Array>().Get((uint32_t) 1).ToNumber().Int32Value();
-    attach_options->stderr_fd = info[6].As<Napi::Array>().Get((uint32_t) 2).ToNumber().Int32Value();
-
-    attach_options->log_fd = -EBADF;
-    attach_options->lsm_label = nullptr;
-
-    attach_options->initial_cwd = strdup(info[7].ToString().Utf8Value().c_str());
-
-    // Allocate memory for char* pointers
-    uint32_t extra_env_varsLength;
-    auto **extra_env_vars = Array::NapiToCharStarArray(info[8].As<Napi::Array>(), extra_env_varsLength);
-
-    attach_options->extra_env_vars = extra_env_vars;
-
-    // Allocate memory for char* pointers
+    uint32_t extra_env_varsLength = 0;
     uint32_t extra_keep_envLength = 0;
-    auto **extra_keep_env = Array::NapiToCharStarArray(info[9].As<Napi::Array>(), extra_env_varsLength);
+    if (info[0].IsObject()) {
+        auto options = info[0].ToObject();
+        attach_options.attach_flags = opt_obj_val("attach_flags", ToNumber().Int32Value(), LXC_ATTACH_DEFAULT);
+        attach_options.namespaces = opt_obj_val("namespaces", ToNumber().Int32Value(), -1);
+        attach_options.personality = opt_obj_val("personality", As<Napi::BigInt>().Int64Value(nullptr),
+                                                 LXC_ATTACH_DETECT_PERSONALITY);
+        attach_options.initial_cwd = (char *) (opt_strdup_val_checked("initial_cwd",
+                                                                      nullptr));  // Clear at the end of promise
+        attach_options.uid = opt_obj_val("uid", ToNumber().Uint32Value(), (uid_t) -1);
+        attach_options.gid = opt_obj_val("gid", ToNumber().Uint32Value(), (gid_t) -1);
+#if VERSION_AT_LEAST(4, 0, 9)
+        if (opt_has_val_checked("groups", IsArray())) {
+            auto jsGroups = options.Get("groups").As<Napi::Array>();
+            lxc_groups_t groups = {
+                    .size = jsGroups.Length(),
+                    .list = jsGroups.Length() > 0 ? new gid_t[jsGroups.Length()] : nullptr
+            };
+            if (groups.list != nullptr) {
+                for (size_t i = 0; i < jsGroups.Length(); ++i) {
+                    groups.list[i] = jsGroups.Get(i).ToNumber().Uint32Value();
+                }
+                attach_options.groups = groups;
+                attach_options.attach_flags &= LXC_ATTACH_SETGROUPS;
+            }
+        }
+#endif
+        attach_options.env_policy = (lxc_attach_env_policy_t) opt_obj_val("env_policy", ToNumber().Int32Value(),
+                                                                          LXC_ATTACH_CLEAR_ENV);
+        if (opt_has_val_checked("extra_env_vars", IsArray())) {
+            auto **extra_env_vars = Array::NapiToCharStarArray(info[8].As<Napi::Array>(),
+                                                               extra_env_varsLength); // Clear at the end of promise
+            attach_options.extra_env_vars = extra_env_vars;
+        }
+        if (opt_has_val_checked("extra_keep_env", IsArray()) && attach_options.env_policy == LXC_ATTACH_CLEAR_ENV) {
+            auto **extra_keep_env = Array::NapiToCharStarArray(info[9].As<Napi::Array>(),
+                                                               extra_keep_envLength); // Clear at the end of promise
+            attach_options.extra_keep_env = extra_keep_env;
+        }
+        if (opt_has_val_checked("stdio", IsArray())) {
+            auto stdio = options.Get("stdio").As<Napi::Array>();
+            attach_options.stdin_fd = stdio.Get((uint32_t) 0).ToNumber().Int32Value();
+            attach_options.stdout_fd = stdio.Get((uint32_t) 1).ToNumber().Int32Value();
+            attach_options.stderr_fd = stdio.Get((uint32_t) 2).ToNumber().Int32Value();
+        }
 
-    attach_options->extra_keep_env = extra_keep_env;
+        attach_options.log_fd = opt_obj_val("log_fd", ToNumber().Int32Value(), -EBADF);
+        attach_options.lsm_label = opt_strdup_val_checked("lsm_label", nullptr); // Clear at the end of promise
 
+    }
     auto worker = new AsyncPromise<int>(
             deferred,
-            [this, attach_options, extra_env_vars, extra_env_varsLength, extra_keep_env, extra_keep_envLength](
+            [this, &attach_options, extra_env_varsLength, extra_keep_envLength](
                     AsyncPromise<int> *worker) {
                 pid_t pid;
-                int ret = _container->attach(_container, lxc_attach_run_shell, nullptr, attach_options, &pid);
+                int ret = _container->attach(_container, lxc_attach_run_shell, nullptr,
+                                             static_cast<lxc_attach_options_t *>(&attach_options), &pid);
                 if (ret < 0) {
                     worker->Error(strerror(errno));
                 }
@@ -876,15 +854,15 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
                 }
                 end:
                 // Cleanup: Free allocated memory
-                Array::FreeCharStarArray(extra_env_vars, extra_env_varsLength);
-                Array::FreeCharStarArray(extra_keep_env, extra_keep_envLength);
-                free(attach_options);
+                free(attach_options.initial_cwd);
+                Array::FreeCharStarArray(attach_options.extra_env_vars, extra_env_varsLength);
+                Array::FreeCharStarArray(attach_options.extra_keep_env, extra_keep_envLength);
+                free(attach_options.lsm_label);
                 worker->Result(pid);
-                // TODO: Probably free group items as well;
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
@@ -980,8 +958,8 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
                 worker->Result(pid);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Value Container::Console(const Napi::CallbackInfo &info) {
@@ -1013,8 +991,8 @@ Napi::Value Container::Console(const Napi::CallbackInfo &info) {
                 }
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
-    return deferred.Promise();
+
+    return worker->Promise();
 }
 
 Napi::Object Container::New(Napi::Env env, const std::initializer_list<napi_value> &args) {
@@ -1073,7 +1051,8 @@ Napi::Value Container::SnapshotList(const Napi::CallbackInfo &info) {
                     auto snapshotObj = Napi::Object::New(worker->Env());
                     auto snapshot = std::get<0>(data)[0];
                     snapshotObj.Set("name", Napi::String::New(worker->Env(), snapshot.name));
-                    snapshotObj.Set("comment_pathname", Napi::String::New(worker->Env(), snapshot.comment_pathname));
+                    snapshotObj.Set("comment_pathname",
+                                    Napi::String::New(worker->Env(), snapshot.comment_pathname));
                     snapshotObj.Set("timestamp", Napi::String::New(worker->Env(), snapshot.timestamp));
                     snapshotObj.Set("lxcpath", Napi::String::New(worker->Env(), snapshot.lxcpath));
                     snapshot.free(&snapshot);
@@ -1100,7 +1079,8 @@ Napi::Value Container::SnapshotRestore(const Napi::CallbackInfo &info) {
                     return;
                 }
                 if (!_container->snapshot_restore(_container, snapname.c_str(), newname.c_str())) {
-                    worker->Error("Unable to restore " + std::string(_container->name) + " to snapshot " + snapname);
+                    worker->Error(
+                            "Unable to restore " + std::string(_container->name) + " to snapshot " + snapname);
                     return;
                 }
             });
@@ -1309,7 +1289,8 @@ Napi::Value Container::Migrate(const Napi::CallbackInfo &info) {
     opts->action_script = opt_obj_val("action_script", ToString().Utf8Value().data(), nullptr);
     opts->disable_skip_in_flight = opt_obj_val("disable_skip_in_flight", ToBoolean(), false);
     opts->ghost_limit = opt_obj_val("ghost_limit", As<Napi::BigInt>().Uint64Value(nullptr), 0);
-    opts->features_to_check = (uint64_t) opt_obj_val("features_to_check", As<Napi::BigInt>().Uint64Value(nullptr), 0);
+    opts->features_to_check = (uint64_t) opt_obj_val("features_to_check", As<Napi::BigInt>().Uint64Value(nullptr),
+                                                     0);
 
     auto size = sizeof(*opts);
 
@@ -1469,7 +1450,8 @@ Napi::Value Container::SeccompNotifyFdActive(const Napi::CallbackInfo &info) {
             [this](AsyncPromise<int> *worker) {
                 auto ret = _container->seccomp_notify_fd_active(_container);
                 if (ret < 0) {
-                    worker->Error("Failed to retrieve a file descriptor for the running container's seccomp filter");
+                    worker->Error(
+                            "Failed to retrieve a file descriptor for the running container's seccomp filter");
                     return;
                 }
                 worker->Result(ret);
@@ -1487,7 +1469,8 @@ Napi::Value Container::InitPIDFd(const Napi::CallbackInfo &info) {
             [this](AsyncPromise<int> *worker) {
                 auto ret = _container->init_pidfd(_container);
                 if (ret < 0) {
-                    worker->Error("Failed to retrieve a file descriptor for the running container's seccomp filter");
+                    worker->Error(
+                            "Failed to retrieve a file descriptor for the running container's seccomp filter");
                     return;
                 }
                 worker->Result(ret);

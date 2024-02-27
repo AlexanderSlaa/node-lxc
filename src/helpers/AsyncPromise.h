@@ -45,7 +45,8 @@ public:
         return Napi::String::New(worker->Env(), std::get<0>(tuple));
     }
 
-    static Napi::String SizeCharStringWrapper(AsyncPromise<char *, size_t> *worker, const std::tuple<char *, size_t> &tuple) {
+    static Napi::String
+    SizeCharStringWrapper(AsyncPromise<char *, size_t> *worker, const std::tuple<char *, size_t> &tuple) {
         return Napi::String::New(worker->Env(), std::get<0>(tuple), std::get<1>(tuple));
     }
 
@@ -122,7 +123,8 @@ public:
         return this->data_;
     }
 
-    Napi::Promise Promise() {
+    Napi::Promise Promise(bool queue = true) {
+        if (queue) this->Queue();
         return deferred_.Promise();
     }
 

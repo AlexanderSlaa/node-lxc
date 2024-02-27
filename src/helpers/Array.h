@@ -10,21 +10,6 @@
 
 class Array {
 public:
-    static Napi::Value New(
-            Napi::Env env, ///< N-API environment
-            char **values) {
-        auto array = Napi::Array::New(env);
-        if (values != nullptr) {
-            // Iterate over the array of strings obtained.
-            for (int i = 0; values[i] != nullptr; ++i) {
-                // Convert each string to a Napi::Object Type and add it to the Napi::Array.
-                array[i] = Napi::String::New(env, values[i]);
-            }
-            // Free the memory allocated for the array of strings.
-            free(values);
-        }
-        return array;
-    }
 
     static char **NapiToCharStarArray(const Napi::Array &jsArray, uint32_t &length) {
         if (!jsArray) {

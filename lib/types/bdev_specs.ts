@@ -6,7 +6,7 @@ export type bdev_specs = {
     /**
      * Filesystem size in bytes
      */
-    fssize: number;
+    fssize: bigint | number;
     zfs: {
         /**
          * ZFS root path

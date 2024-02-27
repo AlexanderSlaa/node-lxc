@@ -1,8 +1,16 @@
-import {Container, LXC, LXC_ATTACH, LXC_CREATE, LXC_LOGLEVEL} from "../lib/bindings";
+import {Container, LXC, LXC_ATTACH, LXC_LOGLEVEL} from "../lib/bindings";
 
 console.log(`LXC version(${LXC.GetVersion()})`);
+// import {describe} from "node:test";
 
-
+// describe("Container", () => {
+//     describe("#Create", async () =>{
+//         const c = new Container("node-ct");
+//         await c.create({
+//             template: ""
+//         })
+//     })
+// })
 async function main() {
     const name = "node-ct"
 
@@ -22,14 +30,21 @@ async function main() {
 
     if (!c.defined) {
         console.log("Container creating...")
-        await c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]);
+        await c.create({
+            template: "download",
+            argv: ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]
+        })
         console.log("Done")
     }
 
     console.log("Set wait")
     c.wait("RUNNING").then(async () => {
         console.log("Changed state to RUNNING");
-        console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], LXC_ATTACH.DEFAULT));
+        // console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], LXC_ATTACH.DEFAULT));
+        console.log("pid:", await c.attach({
+            initial_cwd: "/",
+            stdio: [process.stdin.fd, process.stdout.fd, process.stderr.fd],
+        }));
     })
 
     if (!c.running) {

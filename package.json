@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "NodeJS LXC bindings",
   "author": "Alexander Slaa",
-  "license": "ISC",
+  "license": "MIT",
   "main": "index.ts",
   "private": true,
   "dependencies": {
+    "mocha": "^10.3.0",
     "node-addon-api": "^7.1.0"
   },
   "devDependencies": {
