@@ -6,7 +6,6 @@
 #define NODE_LXC_PROMISEWORKER_H
 
 #include <napi.h>
-#include "./Undefined.h"
 #include <stdexcept>
 
 template<typename... Args>

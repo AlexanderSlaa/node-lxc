@@ -229,7 +229,7 @@ Napi::Value Container::Start(const Napi::CallbackInfo &info) {
                 if (!_container->start(_container, useinit, argv)) {
                     worker->Error(strerror(_container->error_num));
                 }
-                Array::FreeCharStarArray(argv, argvLength);
+                Array::free(argv, argvLength);
             },
             AsyncPromise<int>::NumberWrapper);
     return worker->Promise();
@@ -393,7 +393,7 @@ Napi::Value Container::Create(const Napi::CallbackInfo &info) {
                 if (!_container->create(_container, template_.c_str(), bdevtype.c_str(), &specs, flags, argv)) {
                     worker->Error(strerror(errno));
                 }
-                Array::FreeCharStarArray(argv, argvLength);
+                Array::free(argv, argvLength);
             });
     return worker->Promise();
 }
@@ -681,7 +681,7 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
                     AsyncPromise<lxc_container *> *worker) {
                 if (_container->is_running(_container)) {
                     worker->Error("Container needs to be stopped to clone");
-                    Array::FreeCharStarArray(hookargs, hookargsLength);
+                    Array::free(hookargs, hookargsLength);
                     return;
                 }
                 auto clone = _container->clone(_container,
@@ -697,7 +697,7 @@ Napi::Value Container::Clone(const Napi::CallbackInfo &info) {
                 } else {
                     worker->Result(clone);
                 }
-                Array::FreeCharStarArray(hookargs, hookargsLength);
+                Array::free(hookargs, hookargsLength);
             },
             [](AsyncPromise<lxc_container *> *worker, std::tuple<lxc_container *> c) {
                 return Container::New(worker->Env(),
@@ -863,8 +863,8 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
                 end:
                 // Cleanup: Free-up allocated memory
                 free(attach_options->initial_cwd);
-                Array::FreeCharStarArray(attach_options->extra_env_vars, extra_env_varsLength);
-                Array::FreeCharStarArray(attach_options->extra_keep_env, extra_keep_envLength);
+                Array::free(attach_options->extra_env_vars, extra_env_varsLength);
+                Array::free(attach_options->extra_keep_env, extra_keep_envLength);
                 free(attach_options->lsm_label);
                 free(attach_options);
             },
@@ -959,8 +959,8 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
                     worker->Result(pid);
                 }
                 free(attach_options->initial_cwd);
-                Array::FreeCharStarArray(attach_options->extra_env_vars, extra_env_varsLength);
-                Array::FreeCharStarArray(attach_options->extra_keep_env, extra_keep_envLength);
+                Array::free(attach_options->extra_env_vars, extra_env_varsLength);
+                Array::free(attach_options->extra_keep_env, extra_keep_envLength);
                 free(attach_options->lsm_label);
                 free(attach_options);
                 free(command);

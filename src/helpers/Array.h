@@ -6,7 +6,6 @@
 #define NODE_LXC_ARRAY_H
 
 #include "napi.h"
-#include "./Undefined.h"
 
 class Array {
 public:
@@ -44,7 +43,7 @@ public:
         return argv;
     }
 
-    static void FreeCharStarArray(char **argv, uint32_t length) {
+    static void free(char **argv, uint32_t length) {
         if (!argv) {
             return;
         }
