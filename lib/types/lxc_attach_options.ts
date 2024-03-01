@@ -5,7 +5,7 @@ import {LXC_ATTACH} from "./LXC_ATTACH";
 
 export type lxc_attach_options = ({
     /**
-     * If ClearEnv is true the environment is cleared before running the command.
+     * If ClearEnv is true, the environment is cleared before running the command.
      */
     env_policy: lxc_attach_env_policy.LXC_ATTACH_CLEAR_ENV,
     /**
@@ -96,6 +96,10 @@ export type lxc_attach_options = ({
     }
 
 
+/**
+ * Default attach options to use
+ * @link [https://github.com/lxc/lxc](https://github.com/lxc/lxc/blob/main/src/lxc/attach_options.h#L161C9-L161C40)
+ */
 export const DEFAULT_ATTACH: lxc_attach_options = {
     attach_flags: LXC_ATTACH.DEFAULT,
     namespaces: -1,

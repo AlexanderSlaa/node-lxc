@@ -28,6 +28,11 @@ export type ContainerState =
 
 export type Container = {
     /**
+     * Last error number and Human-readable string representing last error
+     */
+    get error(): { num: number, string: string }
+
+    /**
      * Name of container
      * @returns {string} current name of container
      */
@@ -131,16 +136,16 @@ export type Container = {
     stop(): Promise<void>;
     /**
      * Change whether the container wishes all file descriptors to be closed on startup.
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a2c979929461fcb4ebe96baed2b0acb8f)
      * @param state {boolean} Value for the close_all_fds.
      * @returns {Promise<void>} if there is any error the promise is rejected
      */
     wantCloseAllFds(state: boolean): Promise<void>; //Check if state is used in c bindings
     /**
      * Wait for a container to be in a specified state
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a103d932d1b2ba4e8b07100ef4dbd053f)
      * @param state {ContainerState} State to wait for.
-     * @param timeout {number} default: -1 Timeout in seconds.
+     * @param timeout {number} @default: -1 Timeout in seconds. 0 to avoid waiting
      * @returns {Promise<void>} When resolved the container is the specified state, when rejected the container wait timed-out or an error occurred
      */
     wait(state: ContainerState, timeout?: number): Promise<void>;
@@ -270,15 +275,16 @@ export type Container = {
     getCGroupItem(subsys: string): string | undefined;
     /**
      * Set the specified cgroup subsystem value for the container.
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#aff7753133cff04ed1e48fdceaf490a28)
      * @param subsys {string} cgroup subsystem to consider.
      * @param value {string} Value to set for `subsys`.
      */
     setCGroupItem(subsys: string, value: string): void;
     /**
      * Copy a stopped container.
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#ada03abc45ce41a3229837858a25de841)
      * @param options {lxc_clone_options}
+     * @returns {Promise<Container>} returns a class instance of the container clone.
      * @note
      * If devtype was not specified, and flags contains LXC_CLONE_SNAPSHOT then use the native bdevtype if possible, else use an overlayfs.
      */
@@ -296,95 +302,123 @@ export type Container = {
     consoleGetFds(ttynum?: number): Promise<[number, number]>
     /**
      * Allocate and run a console tty.
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a5ef781838651c315c8cdc6730586a554)
      * @param ttynum {number} Terminal number to attempt to allocate, -1 to allocate the first available tty or 0 to allocate the console.
      * @param stdio {[number,number,number]} [stdinfd, stdoutfd, stderrfd]
      * @param escape {number} The escape character (1 == 'a', 2 == 'b', ...).
-     *
-     * @note This function will not return until the console has been exited by the user.
+     * @returns {Promise<void>} The promise will not return until the user has exited the console.
      */
     console(ttynum: number, stdio: [number, number, number], escape: number): Promise<void>;
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Create a shell attached to a container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a1fd6ce7695e6a967efbb9dcc36952168)
      * @param options {lxc_attach_options}
+     * @see {DEFAULT_ATTACH}
+     * @returns {number} exit status of the process inside the container
      */
-    // attach(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number): Promise<number>;
     attach(options?: Partial<lxc_attach_options>): Promise<number>;
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param commentfile
+     * Create a container snapshot.
+     * Assuming default paths, snapshots will be created as /var/lib/lxc/<c>/snaps/snap<n> where <c> represents the container name and <n> represents the zero-based snapshot number.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#ab81bbbabd39179066c4bca619e3bcb7d)
+     * @param commentfile {string} Full path to file containing a description of the snapshot.
      */
     snapshot(commentfile: string): Promise<number>;
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Obtain a list of container snapshots.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#aba8a7bc21d7a805110563f5446d9fe82)
+     * @returns {lxc_snapshot[]} array of snapshots
      */
     snapshotList(): Promise<lxc_snapshot[]>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param snapname
-     * @param newname
+     * Create a new container based on a snapshot.
+     * The restored container will be a copy (not snapshot) of the snapshot, and restored in the lxcpath of the original container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#acc0a13de063830a2ccee54ff88f57f79)
+     * @param snapname {string} Name of snapshot.
+     * @param newname {string} Name to be used for the restored snapshot.
+     *
+     * @warning If newname is the same as the current container name, the container will be destroyed. However, this will fail if the snapshot is overlay-based, since the snapshots will pin the original container.
+     * @note As an example, if the container exists as `/var/lib/lxc/c1`, snapname might be 'snap0' (representing `/var/lib/lxc/c1/snaps/snap0`). If newname is c2, then snap0 will be copied to `/var/lib/lxc/c2`.
      */
     snapshotRestore(snapname: string, newname?: string): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param snapname
+     * Destroy the specified snapshot.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a80009a1f8c81e8c0776e9e05d18f0d6b)
+     * @param snapname {string} Name of snapshot.
      */
     snapshotDestroy(snapname: string): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param all
+     * Destroy all the container's snapshot.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a16c2f4e7f308f8b1c0b281145cc9c845)
+     * @param all {boolean}
      */
     snapshotDestroy(all: true): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param src_path
-     * @param dest_path
+     * Add a specified device to the container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a269156192f005e5f3cd44f5834637023)
+     * @param src_path {string} Full path of the device.
+     * @param dest_path {string} Alternate path in the container (or `undefined` to use src_path).
      */
     addDeviceNode(src_path: string, dest_path?: string): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param src_path
-     * @param dest_path
+     * Remove a specified device from the container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a3866a5cc79af7e8d8d6b15055f356f73)
+     * @param src_path {string} Full path of the device.
+     * @param dest_path {string} Alternate path in the container (or `undefined` to use src_path).
      */
     removeDeviceNode(src_path: string, dest_path?: string): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param dev
-     * @param dst_dev
+     * Add specified netdev to the container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a33aadfb28b145095bb7213b6bfb02b57)
+     * @param dev {string}  name of the net-device.
+     * @param dst_dev {string | undefined} name inside container of net-device.
+     * use `undefined` to use the same name as host
      */
     attachInterface(dev: string, dst_dev?: string): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param dev
-     * @param dst_dev
+     * Remove specified netdev from the container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#ac00d4ee3286ca5c0f2d4283c283fc0ec)
+     * @param dev {string} name of the net-device.
+     * @param dst_dev {string | undefined}  name inside container of net-device.
+     * use `undefined` to use the same name as host
      */
     detachInterface(dev: string, dst_dev?: string): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param directory
-     * @param stop
-     * @param verbose
+     * Checkpoint a container.
+     * @link [https://linuxcontainers.org/apidoc](/https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a0a034333ca81e2a80b5e52bfadd73c5b)
+     * @param directory {string} The directory to dump the container to.
+     * @param stop {boolean | undefined} Whether or not to stop the container after checkpointing.
+     * @default false (don't stop container after taking checkpoint)
+     * @param verbose {boolean | undefined} Enable criu's verbose logs.
+     * @default false
      */
     checkpoint(directory: string, stop?: boolean, verbose?: boolean): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param directory
-     * @param verbose
+     * Restore a container from a checkpoint.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#ac7c05a5b4bd5e85557dc080251da2db1)
+     * @param directory {string} The directory to dump the container to.
+     * @param verbose {boolean | undefined} Enable criu's verbose logs.
+     * @default false
      */
     restore(directory: string, verbose?: boolean): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param cmd
-     * @param options
+     * An API call to perform various migration operations.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#aaa8cbcb64d51efb940789863d22e9572)
+     * @param cmd {LXC_MIGRATE} One of the MIGRATE_ constants.
+     * @param options {migrate_opts | undefined} A migrate_opts object filled with relevant options.
+     * //TODO: CHECK IF OPTIONS IS ALLOWED TO BE UNDEFINED
      */
     migrate(cmd: LXC_MIGRATE, options?: Partial<migrate_opts>): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param options
+     * Query the console log of a container.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a1d9a42547c16a3350e47e9b8978692c1)
+     * @param options {lxc_console_log} A lxc_console_log object filled with relevant options.
+     * @returns {Promise<string>} string with the logs.
      */
     consoleLog(options?: Partial<lxc_console_log>): Promise<string>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Mount the host's path source onto the container's path target.
+     * @link [https://github.com/lxc/lxc](https://github.com/lxc/lxc/blob/main/src/lxc/lxccontainer.h#L841)
      * @param source
      * @param target
      * @param filesystemtype
@@ -393,6 +427,7 @@ export type Container = {
      */
     mount(source: string, target: string, filesystemtype: string | undefined, mountflags: bigint | number, mnt: lxc_mount): Promise<void>
     /**
+     * Unmount the container's path target.
      * @link [https://linuxcontainers.org/apidoc](//TODO)
      * @param source
      * @param mountflags
@@ -400,37 +435,35 @@ export type Container = {
      */
     umount(source: string, mountflags: bigint | number, mnt: lxc_mount): Promise<void>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Retrieve a file descriptor for the container's seccomp filter.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#aa94c6d2e4f992a9323988e16c05215c2)
+     * @returns {Promise<number>} file descriptor for container's seccomp filter
      */
     seccompNotifyFd(): Promise<number>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Retrieve a file descriptor for the running container's seccomp filter.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a0247dee4857aa62cff8e76d007e33848)
+     * @returns {Promise<number>} file descriptor for the running container's seccomp filter
      */
     seccompNotifyFdActive(): Promise<number>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Retrieve a pidfd for the container's init process.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a8ce63dc530f57a3a198ed2d0f0c229a9)
+     * @returns {Promise<number>} pidfd of the init process of the container.
      */
     initPIDFd(): Promise<number>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
+     * Retrieve a mount fd for the container's devpts instance.
+     * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a863a304c9c98e570b016d59ec2016725)
+     * @returns {Promise<number>} Mount fd of the container's devpts instance.
      */
     devptsFd(): Promise<number>
     /**
-     * @link [https://linuxcontainers.org/apidoc](//TODO)
-     * @param clear_env
-     * @param namespace
-     * @param personality
-     * @param uid
-     * @param guid
-     * @param groups
-     * @param stdio
-     * @param cwd
-     * @param env
-     * @param keep_env
-     * @param flags
-     * @param argv
+     * Run a command in the container.
+     * @param options {Partial<lxc_attach_options> & {argv: string[]}} argv[0] => program, argv[1-n] = program args
+     * @returns {Promise<number>} PID of the process running in the container
      */
-    exec(clear_env: boolean, namespace: number, personality: number, uid: number, guid: number, groups: number[], stdio: [number, number, number], cwd: string, env: string[], keep_env: string[], flags: number, argv: string[]): Promise<number>;
+    exec(options: Partial<lxc_attach_options> & { argv: string[] }): Promise<number>;
 }
 
 

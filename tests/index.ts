@@ -1,4 +1,4 @@
-import {Container, LXC, LXC_ATTACH, LXC_LOGLEVEL} from "../lib/bindings";
+import {Container, LXC, LXC_LOGLEVEL} from "../lib/bindings";
 
 console.log(`LXC version(${LXC.GetVersion()})`);
 // import {describe} from "node:test";
@@ -36,16 +36,16 @@ async function main() {
         })
         console.log("Done")
     }
-
-    console.log("Set wait")
-    c.wait("RUNNING").then(async () => {
-        console.log("Changed state to RUNNING");
-        // console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], LXC_ATTACH.DEFAULT));
-        console.log("pid:", await c.attach({
-            initial_cwd: "/",
-            stdio: [process.stdin.fd, process.stdout.fd, process.stderr.fd],
-        }));
-    })
+    //
+    // console.log("Set wait")
+    // c.wait("RUNNING").then(async () => {
+    //     console.log("Changed state to RUNNING");
+    //     // console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], LXC_ATTACH.DEFAULT));
+    //     console.log("pid:", await c.attach({
+    //         initial_cwd: "/",
+    //         stdio: [process.stdin.fd, process.stdout.fd, process.stderr.fd],
+    //     }));
+    // })
 
     if (!c.running) {
         console.log("Container starting...")
@@ -110,6 +110,14 @@ async function main() {
     //     attach_flags,
     //     ['echo', 'helloworld', '|', 'test.txt']
     // ));
+
+    await c.attach();
+
+    console.log("pid", await c.exec({
+        stdio: [process.stdin.fd, process.stdout.fd, process.stderr.fd],
+        argv: ['cat', '/etc/os-release']
+    }))
+
     // console.log("pid:", await c.exec(
     //     false,
     //     -1,
