@@ -2,10 +2,18 @@ import {Container} from "../../lib/bindings";
 
 async function main() {
     const c = new Container("node-ct");
-    if(!c.defined){
+    if (!c.defined) {
         throw "Container not defined"
     }
-    c.shutdown().then(()=> console.log("Container shutdown"))
+
+    console.log("Shutting down the container...\n")
+    await c.shutdown(30).then(
+        () =>
+            console.log("Container shutdown"),
+        (reason) => {
+            console.warn("Failed to shutdown container reason:", reason);
+            return c.stop();
+        })
 }
 
 main().catch(console.error)

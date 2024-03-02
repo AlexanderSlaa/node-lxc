@@ -165,7 +165,20 @@ export type Container = {
      * @returns {Promise<void>} if there is any error the promise is rejected
      * @note **Container must be stopped and have no dependent snapshots.**
      */
-    destroy(options?: { include_snapshots?: boolean, force?: boolean }): Promise<void>
+    destroy(options?: {
+        /**
+         * include all snapshots of container
+         * @type {boolean | undefined}
+         * @default false
+         */
+        include_snapshots?: boolean,
+        /**
+         * Forcefully stop the container and then destroy
+         * @type {boolean | undefined}
+         * @default false
+         */
+        force?: boolean
+    }): Promise<void>
     /**
      * Save configuration to a file.
      * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#abea85657b8f816e7d2d5238c0d731a67)
@@ -234,7 +247,7 @@ export type Container = {
      * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a7411db2a0e7a8471c41a4a58d8e83b33)
      * @param key {string} Name of option to get.
      */
-    getConfigItem(key: string): string;
+    getConfigItem(key: string): string | undefined;
     /**
      * Retrieve the value of a config item from running container.
      * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#aeb0f5f1589ba5dc14d5d1e1c0cb87f96)
@@ -246,7 +259,7 @@ export type Container = {
      * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a885bbd0d02c3771bcee7b02a2c398be9)
      * @param prefix
      */
-    getKeys(prefix: string): string[]
+    getKeys(prefix?: string): string[]
     /**
      * Obtain a list of network interfaces.
      * @link [https://linuxcontainers.org/apidoc](https://linuxcontainers.org/lxc/apidoc/structlxc__container.html#a50d09300fa69182156b58eb9ef288dbd)

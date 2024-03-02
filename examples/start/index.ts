@@ -5,7 +5,7 @@ async function main() {
     if(!c.defined){
         throw "Container not defined"
     }
-    c.stop().then(()=> console.log("Container stopped"))
+    c.start().then(()=> console.log("Container started"))
 }
 
 main().catch(console.error)

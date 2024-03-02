@@ -27,7 +27,19 @@
     "build": "node-gyp build",
     "clean": "node-gyp clean && npm run configure && npm run build",
     "wipe": "node-gyp clean && npm run configure",
-    "configure": "node-gyp configure"
+    "configure": "node-gyp configure",
+    "example:attach": "ts-node examples/attach/index.ts",
+    "example:attach-streams": "ts-node examples/attach-streams/index.ts",
+    "example:checkpoint": "ts-node examples/checkpoint/index.ts",
+    "example:clone": "ts-node examples/clone/index.ts",
+    "example:concurrent_create": "ts-node examples/concurrent_create/index.ts",
+    "example:concurrent_destroy": "ts-node examples/concurrent_destroy/index.ts",
+    "example:concurrent_shutdown": "ts-node examples/concurrent_shutdown/index.ts",
+    "example:concurrent_start": "ts-node examples/concurrent_start/index.ts",
+    "example:concurrent_stop": "ts-node examples/concurrent_stop/index.ts",
+    "example:config": "ts-node examples/config/index.ts",
+    "example:execute": "ts-node examples/execute/index.ts",
+    "example:keys": "ts-node examples/list_keys/index.ts"
   },
   "engines": {
     "node": "~10 >=10.20 || >=12.17"

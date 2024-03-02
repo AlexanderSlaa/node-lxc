@@ -2,10 +2,10 @@ import {Container} from "../../lib/bindings";
 
 async function main() {
     const c = new Container("node-ct");
-    if(!c.defined){
+    if (!c.defined) {
         throw "Container not defined"
     }
-    c.stop().then(()=> console.log("Container stopped"))
+    c.unfreeze().then(() => console.log("Container thawed"))
 }
 
 main().catch(console.error)

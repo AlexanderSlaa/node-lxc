@@ -442,10 +442,13 @@ Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
     auto deferred = Napi::Promise::Deferred::New(info.Env());
     assert_deferred(_container, "Invalid container pointer")
 
-    auto options = info[0].ToObject();
-
-    auto force = opt_obj_val("force", ToBoolean(), false);
-    auto include_snapshots = opt_obj_val("include_snapshots", ToBoolean(), false);
+    auto force = false;
+    auto include_snapshots = false;
+    if (info[0].IsObject()) {
+        auto options = info[0].ToObject();
+        force = opt_obj_val("force", ToBoolean(), false);
+        include_snapshots = opt_obj_val("include_snapshots", ToBoolean(), false);
+    }
     auto worker = new AsyncPromise<>(
             deferred,
             [this, force, include_snapshots](AsyncPromise<> *worker) {
@@ -542,12 +545,11 @@ Napi::Value Container::GetRunningConfigItem(const Napi::CallbackInfo &info) {
 
 Napi::Value Container::GetKeys(const Napi::CallbackInfo &info) {
     assert(_container, "Invalid container pointer")
-    check(info.Length() <= 0 || !info[0].IsString(), "Invalid arguments")
 
     auto keys = Napi::Array::New(info.Env());
 
     char *value;
-    int len = _container->get_keys(_container, info[0].ToString().Utf8Value().c_str(), nullptr, 0);
+    int len = _container->get_keys(_container, info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr, nullptr, 0);
     if (len <= 0) {
         return keys;
     }
@@ -557,7 +559,8 @@ Napi::Value Container::GetKeys(const Napi::CallbackInfo &info) {
     if (value == nullptr)
         goto again;
 
-    if (_container->get_keys(_container, info[0].ToString().Utf8Value().c_str(), value, len + 1) != len) {
+    if (_container->get_keys(_container, info[0].IsString() ? info[0].ToString().Utf8Value().c_str() : nullptr, value, len + 1) !=
+        len) {
         Napi::Error::New(info.Env(), "Key amount mismatch on retrieval").ThrowAsJavaScriptException();
         free(value);
     }

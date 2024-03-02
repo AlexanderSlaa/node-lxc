@@ -2,10 +2,10 @@ import {Container} from "../../lib/bindings";
 
 async function main() {
     const c = new Container("node-ct");
-    if(!c.defined){
-        throw "Container not defined"
+    if (c.defined && c.running) {
+        await c.addDeviceNode("/dev/network_latency");
+        await c.removeDeviceNode("/dev/network_latency");
     }
-    c.stop().then(()=> console.log("Container stopped"))
 }
 
 main().catch(console.error)
