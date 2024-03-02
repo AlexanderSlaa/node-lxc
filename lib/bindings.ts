@@ -1,6 +1,6 @@
-import type {
+import {
     bdev_specs, lxc_attach_options, lxc_clone_options,
-    lxc_console_log, LXC_CREATE, LXC_MIGRATE, lxc_mount, lxc_snapshot, migrate_opts
+    lxc_console_log, LXC_CREATE, LXC_MIGRATE, LXC_MOUNT, lxc_mount, lxc_snapshot, migrate_opts
 } from "./types";
 
 export * from "./types"
@@ -425,7 +425,7 @@ export type Container = {
      * @param mountflags
      * @param mnt
      */
-    mount(source: string, target: string, filesystemtype: string | undefined, mountflags: bigint | number, mnt: lxc_mount): Promise<void>
+    mount(source: string, target: string, filesystemtype: string | undefined, mountflags: bigint | number | LXC_MOUNT, mnt: lxc_mount): Promise<void>
     /**
      * Unmount the container's path target.
      * @link [https://linuxcontainers.org/apidoc](//TODO)

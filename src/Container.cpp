@@ -449,7 +449,6 @@ Napi::Value Container::Destroy(const Napi::CallbackInfo &info) {
     auto worker = new AsyncPromise<>(
             deferred,
             [this, force, include_snapshots](AsyncPromise<> *worker) {
-
                 // TODO: Check if container has snapshots
 
                 if (_container->is_running(_container)) {
@@ -783,65 +782,80 @@ Napi::Value Container::Attach(const Napi::CallbackInfo &info) {
     uint32_t extra_env_varsLength = 0;
     uint32_t extra_keep_envLength = 0;
 
-    auto options = info[0].ToObject();
-    attach_options->attach_flags = opt_obj_val("attach_flags", ToNumber().Int32Value(), LXC_ATTACH_DEFAULT);
-    attach_options->namespaces = opt_obj_val("namespaces", ToNumber().Int32Value(), -1);
-    attach_options->personality = opt_obj_val("personality", As<Napi::BigInt>().Int64Value(nullptr),
-                                              LXC_ATTACH_DETECT_PERSONALITY);
-    attach_options->initial_cwd = (char *) (opt_strdup_val_checked("initial_cwd",
-                                                                   nullptr)); // Clear at the end of promise
-    attach_options->uid = opt_obj_val("uid", ToNumber().Uint32Value(), (uid_t) -1);
-    attach_options->gid = opt_obj_val("gid", ToNumber().Uint32Value(), (gid_t) -1);
+    if (info[0].IsObject()) {
+        auto options = info[0].ToObject();
+        attach_options->attach_flags = opt_obj_val("attach_flags", ToNumber().Int32Value(), LXC_ATTACH_DEFAULT);
+        attach_options->namespaces = opt_obj_val("namespaces", ToNumber().Int32Value(), -1);
+        attach_options->personality = opt_obj_val("personality", As<Napi::BigInt>().Int64Value(nullptr),
+                                                  LXC_ATTACH_DETECT_PERSONALITY);
+        attach_options->initial_cwd = (char *) (opt_strdup_val_checked("initial_cwd",
+                                                                       nullptr)); // Clear at the end of promise
+        attach_options->uid = opt_obj_val("uid", ToNumber().Uint32Value(), (uid_t) -1);
+        attach_options->gid = opt_obj_val("gid", ToNumber().Uint32Value(), (gid_t) -1);
 
-    attach_options->env_policy = (lxc_attach_env_policy_t) opt_obj_val("env_policy", ToNumber().Int32Value(),
-                                                                       LXC_ATTACH_CLEAR_ENV);
-    if (opt_has_val_checked("extra_env_vars", IsArray())) {
-        auto **extra_env_vars = Array::NapiToCharStarArray(options.Get("extra_env_vars").As<Napi::Array>(),
-                                                           extra_env_varsLength); // Clear at the end of promise
-        attach_options->extra_env_vars = extra_env_vars;
+        attach_options->env_policy = (lxc_attach_env_policy_t) opt_obj_val("env_policy", ToNumber().Int32Value(),
+                                                                           LXC_ATTACH_CLEAR_ENV);
+        if (opt_has_val_checked("extra_env_vars", IsArray())) {
+            auto **extra_env_vars = Array::NapiToCharStarArray(options.Get("extra_env_vars").As<Napi::Array>(),
+                                                               extra_env_varsLength); // Clear at the end of promise
+            attach_options->extra_env_vars = extra_env_vars;
+        } else {
+            attach_options->extra_env_vars = nullptr;
+        }
+        if (opt_has_val_checked("extra_keep_env", IsArray()) && attach_options->env_policy == LXC_ATTACH_CLEAR_ENV) {
+            auto **extra_keep_env = Array::NapiToCharStarArray(options.Get("extra_keep_env").As<Napi::Array>(),
+                                                               extra_keep_envLength); // Clear at the end of promise
+            attach_options->extra_keep_env = extra_keep_env;
+        } else {
+            attach_options->extra_keep_env = nullptr;
+        }
+        if (opt_has_val_checked("stdio", IsArray())) {
+            auto stdio = options.Get("stdio").As<Napi::Array>();
+            attach_options->stdin_fd = stdio.Get((uint32_t) 0).ToNumber().Int32Value();
+            attach_options->stdout_fd = stdio.Get((uint32_t) 1).ToNumber().Int32Value();
+            attach_options->stderr_fd = stdio.Get((uint32_t) 2).ToNumber().Int32Value();
+        } else {
+            attach_options->stdin_fd = 0;
+            attach_options->stdout_fd = 1;
+            attach_options->stderr_fd = 2;
+        }
+
+        attach_options->log_fd = opt_obj_val("log_fd", ToNumber().Int32Value(), -EBADF);
+        attach_options->lsm_label = opt_strdup_val_checked("lsm_label", nullptr); // Clear at the end of promise
+#if VERSION_AT_LEAST(4, 0, 9)
+        if (opt_has_val_checked("groups", IsArray())) {
+            auto jsGroups = options.Get("groups").As<Napi::Array>();
+            lxc_groups_t groups = {
+                    .size = jsGroups.Length(),
+                    .list = jsGroups.Length() > 0 ? new gid_t[jsGroups.Length()] : nullptr};
+            if (groups.list != nullptr) {
+                for (size_t i = 0; i < jsGroups.Length(); ++i) {
+                    groups.list[i] = jsGroups.Get(i).ToNumber().Uint32Value();
+                }
+                attach_options->groups = groups;
+                attach_options->attach_flags &= LXC_ATTACH_SETGROUPS;
+            }
+        } else {
+            attach_options->groups = {};
+        }
+#endif
     } else {
+        attach_options->attach_flags = LXC_ATTACH_DEFAULT;
+        attach_options->namespaces = -1;
+        attach_options->personality = LXC_ATTACH_DETECT_PERSONALITY;
+        attach_options->initial_cwd = nullptr;
+        attach_options->uid = (uid_t) -1;
+        attach_options->gid = (gid_t) -1;
+        attach_options->env_policy = LXC_ATTACH_KEEP_ENV;
         attach_options->extra_env_vars = nullptr;
-
-    }
-    if (opt_has_val_checked("extra_keep_env", IsArray()) && attach_options->env_policy == LXC_ATTACH_CLEAR_ENV) {
-        auto **extra_keep_env = Array::NapiToCharStarArray(options.Get("extra_keep_env").As<Napi::Array>(),
-                                                           extra_keep_envLength); // Clear at the end of promise
-        attach_options->extra_keep_env = extra_keep_env;
-    } else {
         attach_options->extra_keep_env = nullptr;
-    }
-    if (opt_has_val_checked("stdio", IsArray())) {
-        auto stdio = options.Get("stdio").As<Napi::Array>();
-        attach_options->stdin_fd = stdio.Get((uint32_t) 0).ToNumber().Int32Value();
-        attach_options->stdout_fd = stdio.Get((uint32_t) 1).ToNumber().Int32Value();
-        attach_options->stderr_fd = stdio.Get((uint32_t) 2).ToNumber().Int32Value();
-    } else {
         attach_options->stdin_fd = 0;
         attach_options->stdout_fd = 1;
         attach_options->stderr_fd = 2;
-    }
-
-    attach_options->log_fd = opt_obj_val("log_fd", ToNumber().Int32Value(), -EBADF);
-    attach_options->lsm_label = opt_strdup_val_checked("lsm_label", nullptr); // Clear at the end of promise
-#if VERSION_AT_LEAST(4, 0, 9)
-    if (opt_has_val_checked("groups", IsArray())) {
-        auto jsGroups = options.Get("groups").As<Napi::Array>();
-        lxc_groups_t groups = {
-                .size = jsGroups.Length(),
-                .list = jsGroups.Length() > 0 ? new gid_t[jsGroups.Length()] : nullptr};
-        if (groups.list != nullptr) {
-            for (size_t i = 0; i < jsGroups.Length(); ++i) {
-                groups.list[i] = jsGroups.Get(i).ToNumber().Uint32Value();
-            }
-            attach_options->groups = groups;
-            attach_options->attach_flags &= LXC_ATTACH_SETGROUPS;
-        }
-    } else {
+        attach_options->log_fd = -EBADF;
+        attach_options->lsm_label = nullptr;
         attach_options->groups = {};
     }
-#endif
-
-
     auto worker = new AsyncPromise<int>(
             deferred,
             [this, attach_options, extra_env_varsLength, extra_keep_envLength](
@@ -902,7 +916,6 @@ Napi::Value Container::Exec(const Napi::CallbackInfo &info) {
         attach_options->extra_env_vars = extra_env_vars;
     } else {
         attach_options->extra_env_vars = nullptr;
-
     }
     if (opt_has_val_checked("extra_keep_env", IsArray()) && attach_options->env_policy == LXC_ATTACH_CLEAR_ENV) {
         auto **extra_keep_env = Array::NapiToCharStarArray(options.Get("extra_keep_env").As<Napi::Array>(),
@@ -1030,7 +1043,7 @@ Napi::Value Container::Snapshot(const Napi::CallbackInfo &info) {
                 worker->Result(num);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
+
     return worker->Promise();
 }
 
@@ -1068,7 +1081,6 @@ Napi::Value Container::SnapshotList(const Napi::CallbackInfo &info) {
                 }
                 return snapshotArray;
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1092,7 +1104,7 @@ Napi::Value Container::SnapshotRestore(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
+
     return worker->Promise();
 }
 
@@ -1129,7 +1141,6 @@ Napi::Value Container::SnapshotDestroy(const Napi::CallbackInfo &info) {
                     }
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1155,7 +1166,6 @@ Napi::Value Container::AddDeviceNode(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1181,7 +1191,6 @@ Napi::Value Container::RemoveDeviceNode(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1201,7 +1210,6 @@ Napi::Value Container::AttachInterface(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1221,7 +1229,6 @@ Napi::Value Container::DetachInterface(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1249,7 +1256,6 @@ Napi::Value Container::Checkpoint(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1272,7 +1278,6 @@ Napi::Value Container::Restore(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1315,7 +1320,6 @@ Napi::Value Container::Migrate(const Napi::CallbackInfo &info) {
                 cleanup:
                 free(opts);
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1352,7 +1356,6 @@ Napi::Value Container::ConsoleLog(const Napi::CallbackInfo &info) {
                 }
             },
             AsyncPromise<char *, size_t>::SizeCharStringWrapper);
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1380,19 +1383,18 @@ Napi::Value Container::Mount(const Napi::CallbackInfo &info) {
 
     auto worker = new AsyncPromise<>(
             deferred,
-            [this, &source, &target, &filesystemtype, mountflags, &mnt](AsyncPromise<> *worker) {
+            [this, source, target, filesystemtype, mountflags, &mnt](AsyncPromise<> *worker) {
                 if (!_container->may_control(_container)) {
                     worker->Error("Insufficient privileges to control " + std::string(_container->name));
                     return;
                 }
                 auto ret = _container->mount(_container, source.c_str(), target.c_str(),
                                              filesystemtype.empty() ? filesystemtype.c_str() : nullptr, mountflags,
-                                             nullptr, &mnt);
+                                             nullptr, &mnt); //TODO: Throws Segmentation fault 
                 if (ret < 0) {
-                    worker->Error("Failed to mount " + source);
+                    worker->Error(std::string("Failed to mount Error: ") + strerror(ret)); //TODO: Throws Segmentation fault 
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1427,7 +1429,6 @@ Napi::Value Container::Umount(const Napi::CallbackInfo &info) {
                     return;
                 }
             });
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1445,7 +1446,6 @@ Napi::Value Container::SeccompNotifyFd(const Napi::CallbackInfo &info) {
                 worker->Result(ret);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1464,7 +1464,6 @@ Napi::Value Container::SeccompNotifyFdActive(const Napi::CallbackInfo &info) {
                 worker->Result(ret);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1483,7 +1482,6 @@ Napi::Value Container::InitPIDFd(const Napi::CallbackInfo &info) {
                 worker->Result(ret);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
     return worker->Promise();
 }
 
@@ -1501,6 +1499,5 @@ Napi::Value Container::DevptsFd(const Napi::CallbackInfo &info) {
                 worker->Result(ret);
             },
             AsyncPromise<int>::NumberWrapper);
-    worker->Queue();
     return worker->Promise();
 }

@@ -5,7 +5,6 @@
 #include <lxc/version.h>
 #include "Container.h"
 
-
 Napi::String GetVersion(const Napi::CallbackInfo &info) {
     return Napi::String::New(info.Env(), lxc_get_version());
 }

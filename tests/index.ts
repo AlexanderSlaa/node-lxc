@@ -1,141 +1,85 @@
 import {Container, LXC, LXC_LOGLEVEL} from "../lib/bindings";
 
-console.log(`LXC version(${LXC.GetVersion()})`);
-// import {describe} from "node:test";
+import {describe, it} from "node:test";
+import assert = require("node:assert");
 
-// describe("Container", () => {
-//     describe("#Create", async () =>{
-//         const c = new Container("node-ct");
-//         await c.create({
-//             template: ""
-//         })
-//     })
-// })
-async function main() {
-    const name = "node-ct"
+const name = 'node-ct';
 
+describe("Container", () => {
+
+    console.info(`LXC version(${LXC.GetVersion()})`);
     const c = new Container(name);
 
-    c.setConfigItem("lxc.log.file", `./${name}/.log`);
-    c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE);
-
-
-    // Setup network connection
-
-    // c.setConfigItem("lxc.net.0.type", "veth");
-    // c.setConfigItem("lxc.net.0.link", "lxcbr0");
-    // c.setConfigItem("lxc.net.0.flags", "up");
-    // c.setConfigItem("lxc.net.0.hwaddr", "00:16:3e:xx:xx:xx");
-    //
-
-    if (!c.defined) {
-        console.log("Container creating...")
-        await c.create({
-            template: "download",
-            argv: ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]
+    describe("#Setup Logging", () =>
+        it("should setup 'VERBOSE' logging for the container", () => {
+            c.setConfigItem("lxc.log.file", `./${name}/.log`);
+            c.setConfigItem("lxc.log.level", LXC_LOGLEVEL.TRACE);
         })
-        console.log("Done")
-    }
-    //
-    // console.log("Set wait")
-    // c.wait("RUNNING").then(async () => {
-    //     console.log("Changed state to RUNNING");
-    //     // console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], LXC_ATTACH.DEFAULT));
-    //     console.log("pid:", await c.attach({
-    //         initial_cwd: "/",
-    //         stdio: [process.stdin.fd, process.stdout.fd, process.stderr.fd],
-    //     }));
-    // })
+    );
 
-    if (!c.running) {
-        console.log("Container starting...")
-        await c.start();
-        console.log("started");
-    }
+    describe("#Create", () =>
+        it("should define a container called `node-ct`", async () => {
+            if (!c.defined) {
+                await c.create({
+                    template: "download",
+                    argv: ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]
+                })
+            }
+            assert.notEqual(c.defined, false);
+        })
+    );
 
-    // await c.destroy({ include_snapshots: false, force: true });
-    // console.log("destroyed");
-    // console.log("started", await c.start(0, ["/sbin/init"]));
+    describe("#Name", async () =>
+        it("should return the containers name `node-ct`", async () => {
+            assert.equal(c.name, "node-ct");
+        })
+    );
 
-    // const result = await c.consoleGetFds(0);
-    // console.log(result);
+    describe("#Setup Networking", async () =>
+        it("should add a networking capabilities to the containers", async () => {
+            /* Setup network connection */
+            c.setConfigItem("lxc.net.0.type", "veth");
+            c.setConfigItem("lxc.net.0.link", "lxcbr0");
+            c.setConfigItem("lxc.net.0.flags", "up");
+            c.setConfigItem("lxc.net.0.hwaddr", "00:16:3e:xx:xx:xx");
+        })
+    );
 
-    // const clone = await c.clone({
-    //     newname: "node-clone2",
-    // });
-    //
-    // console.log(clone);
-    //
-    // const keys = await c.getInterfaces();
-    //
-    // const ips = await c.getIPs(keys[0], "inet");
-    //
-    // console.log(keys, ips);
-    //
-    // console.log(c.name);
-    //
-    // c.daemonize = true;
-    //
-    // if (!c.defined) {
-    //     console.log("created", await c.create("download", "dir", {}, LXC_CREATE.QUIET, ["--dist", "ubuntu", "--release", "lunar", "--arch", "amd64"]));
-    //     console.log(process.pid);
-    // }
-    //
-    // if (c.running) {
-    //     await c.reboot(-1);
-    // }else{
-    //     console.log("started", await c.start(0, ["/sbin/init"]));
-    //
-    // }
+    describe("#Start", async () =>
+        it("should add a networking capabilities to the containers", async () => {
+            // Setup network connection
+            assert(c.defined, "Container not defined");
+            await c.start();
+            assert.equal(c.running, true);
+        })
+    );
 
+    describe("#State", async () =>
+        it("should return the state of the container == 'RUNNING'", async () => {
+            // Setup network connection
+            assert(c.defined, "Container not defined");
+            assert.equal(c.state, "RUNNING");
+        })
+    );
 
-    // console.log("started", await c.start(0, []));
+    describe("#Reboot", async () =>
+        it("should reboot the container", async () => {
+            await c.reboot();
+            assert.equal(c.state, "RUNNING");
+        })
+    );
 
+    describe("#Shutdown", async () =>
+        it("should return the state of the container == 'RUNNING'", async () => {
+            await c.shutdown();
+            assert.equal(c.state, "STOPPED");
+        })
+    );
 
-    // const attach_flags = LXC_ATTACH.DEFAULT;
-
-
-    // console.log("pid:", await c.attach(false, -1, -1, -1, -1, [], [process.stdin.fd, process.stdout.fd, process.stderr.fd], "/", [], [], attach_flags));
-    // console.log("pid:", await c.exec(
-    //     false,
-    //     -1,
-    //     -1,
-    //     -1,
-    //     -1,
-    //     [],
-    //     [process.stdin.fd, process.stdout.fd, process.stderr.fd],
-    //     "/",
-    //     [],
-    //     [],
-    //     attach_flags,
-    //     ['echo', 'helloworld', '|', 'test.txt']
-    // ));
-
-    await c.attach();
-
-    console.log("pid", await c.exec({
-        stdio: [process.stdin.fd, process.stdout.fd, process.stderr.fd],
-        argv: ['cat', '/etc/os-release']
-    }))
-
-    // console.log("pid:", await c.exec(
-    //     false,
-    //     -1,
-    //     -1,
-    //     -1,
-    //     -1,
-    //     [],
-    //     [process.stdin.fd, process.stdout.fd, process.stderr.fd],
-    //     "/",
-    //     [],
-    //     [],
-    //     attach_flags,
-    //     ['cat', 'test.txt']
-    // ));
-
-
-}
-
-main().catch(console.error);
-
-
+    describe("#Stop", async () =>
+        it("should return the state of the container == 'STOPPED'", async () => {
+            await c.stop();
+            assert.equal(c.state, "STOPPED");
+        })
+    );
+})
